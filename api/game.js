@@ -38,6 +38,7 @@ const SHOP_ITEMS = {
 };
 
 const PHASE_DURATIONS = { rps: 15, coin: 20 };
+const HOST_TIMEOUT = 30 * 1000; // 30s offline = transfer host
 
 async function cleanupInactiveLobbies(db) {
     try {
@@ -46,15 +47,50 @@ async function cleanupInactiveLobbies(db) {
         const thirtyMinAgo = new Date(now - 30 * 60 * 1000);
         const fiveMinAgo = new Date(now - 5 * 60 * 1000);
 
-        const result = await db.collection('lobbies').deleteMany({
-            $or: [
-                { status: 'waiting', players: { $size: 1 }, updated_at: { $lt: oneMinAgo } },
-                { status: 'playing', updated_at: { $lt: thirtyMinAgo } },
-                { status: 'finished', updated_at: { $lt: fiveMinAgo } }
-            ]
+        // 1. Delete empty waiting lobbies after 1min
+        const emptyResult = await db.collection('lobbies').deleteMany({
+            status: 'waiting',
+            players: { $size: 1 },
+            updated_at: { $lt: oneMinAgo }
         });
-        if (result.deletedCount > 0) {
-            console.log(`Deleted ${result.deletedCount} inactive lobbies`);
+
+        // 2. Check host timeout and transfer
+        const staleLobbies = await db.collection('lobbies').find({
+            status: { $in: ['waiting', 'playing'] },
+            updated_at: { $lt: new Date(now - HOST_TIMEOUT) }
+        }).toArray();
+
+        for (const lobby of staleLobbies) {
+            const host = lobby.players.find(p => p.uid === lobby.host_uid);
+            const alivePlayers = lobby.players.filter(p =>!p.is_dead &&!p.uid.startsWith('bot_'));
+
+            // Host offline + other players online
+            if (!host || host.is_dead) {
+                if (alivePlayers.length > 0) {
+                    // Transfer to oldest non-bot player
+                    const newHost = alivePlayers.sort((a, b) => a.joined_at - b.joined_at)[0];
+                    await db.collection('lobbies').updateOne(
+                        { _id: lobby._id },
+                        { $set: { host_uid: newHost.uid, updated_at: new Date() } }
+                    );
+                    await pusher.trigger(`game-${lobby._id}`, 'host-transferred', { new_host: newHost.uid });
+                    console.log(`Host transferred in ${lobby._id} to ${newHost.name}`);
+                } else {
+                    // No players, delete lobby
+                    await db.collection('lobbies').deleteOne({ _id: lobby._id });
+                    await pusher.trigger('presence-global', 'lobby-deleted', { lobby_id: lobby._id });
+                }
+            }
+        }
+
+        // 3. Delete old finished games
+        await db.collection('lobbies').deleteMany({
+            status: 'finished',
+            updated_at: { $lt: fiveMinAgo }
+        });
+
+        if (emptyResult.deletedCount > 0) {
+            console.log(`Deleted ${emptyResult.deletedCount} inactive lobbies`);
         }
     } catch (error) {
         console.error('Cleanup Error:', error);
@@ -110,6 +146,7 @@ async function resolveRPSPhase(lobbyId, db) {
 
         const choices = ['rock', 'paper', 'scissors'];
 
+        // Auto-pick for bots and AFK players
         const updates = [];
         for (const player of alivePlayers) {
             if (!player.rps_choice) {
@@ -206,6 +243,66 @@ async function resolveRPSPhase(lobbyId, db) {
     } catch (error) {
         console.error('Resolve RPS Error:', error);
         return { error: 'Failed to resolve RPS' };
+    }
+}
+
+async function botTurn(lobbyId, db) {
+    try {
+        const lobby = await db.collection('lobbies').findOne({ _id: lobbyId });
+        if (!lobby || lobby.phase!== 'coin') return;
+
+        const bots = lobby.players.filter(p => p.uid.startsWith('bot_') &&!p.is_dead);
+        const humans = lobby.players.filter(p =>!p.uid.startsWith('bot_') &&!p.is_dead);
+
+        for (const bot of bots) {
+            if (bot.coins > 0) {
+                // Buy random item
+                const items = Object.keys(SHOP_ITEMS);
+                const item = items[Math.floor(Math.random() * items.length)];
+                if (bot[item] < SHOP_ITEMS[item].max) {
+                    await db.collection('lobbies').updateOne(
+                        { _id: lobbyId, 'players.uid': bot.uid },
+                        {
+                            $inc: {
+                                'players.$.coins': -1,
+                                [`players.$.${item}`]: 1
+                            },
+                            $set: { updated_at: new Date() }
+                        }
+                    );
+                }
+            }
+
+            // Attack random human
+            if ((bot.canon > 0 || bot.slicer > 0) && humans.length > 0) {
+                const target = humans[Math.floor(Math.random() * humans.length)];
+                const weapon = bot.canon > 0? 'canon' : 'slicer';
+
+                let updates = { $inc: { [`players.$[p].${weapon}`]: -1 }, $set: { updated_at: new Date() } };
+                let arrayFilters = [{ 'p.uid': bot.uid }];
+
+                if (weapon === 'canon' && target.shields > 0) {
+                    updates.$inc['players.$[t].shields'] = -1;
+                    arrayFilters.push({ 't.uid': target.uid });
+                } else if (weapon === 'slicer' && target.shields === 0) {
+                    const newHealth = Math.max(0, target.health - 1);
+                    updates.$set['players.$[t].health'] = newHealth;
+                    if (newHealth === 0) updates.$set['players.$[t].is_dead'] = true;
+                    arrayFilters.push({ 't.uid': target.uid });
+                }
+
+                await db.collection('lobbies').updateOne(
+                    { _id: lobbyId },
+                    updates,
+                    { arrayFilters }
+                );
+            }
+        }
+
+        await pusher.trigger(`game-${lobbyId}`, 'state-update', {});
+        await checkAllCoinsZero(lobbyId, db);
+    } catch (error) {
+        console.error('Bot Turn Error:', error);
     }
 }
 
@@ -476,6 +573,10 @@ module.exports = async (req, res) => {
 
             await pusher.trigger(`game-${lobby_id}`, 'state-update', {});
             await checkAllCoinsZero(lobby_id, db);
+
+            // Bot turn after human buys
+            setTimeout(() => botTurn(lobby_id, db), 500);
+
             return res.json({ success: true });
         }
 
