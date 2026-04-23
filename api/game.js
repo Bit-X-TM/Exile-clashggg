@@ -101,7 +101,7 @@ async function resolveRPSPhase(lobbyId, db) {
             });
         }
     }
-    if (updates.length > 0) await db.bulkWrite(updates);
+    if (updates.length > 0) await db.collection('lobbies').bulkWrite(updates);
 
     const updatedLobby = await db.collection('lobbies').findOne({ _id: lobbyId });
     const players = updatedLobby.players.filter(p =>!p.is_dead);
@@ -199,10 +199,10 @@ module.exports = async (req, res) => {
             }
 
             const lobbies = await db.collection('lobbies')
-               .find({})
-               .sort({ created_at: -1 })
-               .limit(50)
-               .toArray();
+              .find({})
+              .sort({ created_at: -1 })
+              .limit(50)
+              .toArray();
 
             return res.json({ lobbies });
         }
@@ -305,10 +305,10 @@ module.exports = async (req, res) => {
 
         if (action === 'get_public_lobbies') {
             const lobbies = await db.collection('lobbies')
-               .find({ is_public: 1, status: 'waiting' })
-               .sort({ created_at: -1 })
-               .limit(10)
-               .toArray();
+              .find({ is_public: 1, status: 'waiting' })
+              .sort({ created_at: -1 })
+              .limit(10)
+              .toArray();
             return res.json({ lobbies });
         }
 
