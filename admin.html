@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Exile Clash - Admin</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; }
+        body {
+            background: url('img/bg/darkd.png') no-repeat center center fixed;
+            background-size: cover;
+            font-family: 'Poppins', sans-serif;
+            transition: background-image 0.3s ease;
+            color: #fff;
+            padding: 20px;
+        }
+        body.light {
+            background-image: url('img/bg/lightd.png');
+            color: #000;
+        }
+        @media (max-width: 1024px) {
+            body { background-image: url('img/bg/darkp.png'); }
+            body.light { background-image: url('img/bg/lightp.png'); }
+        }
+        .glass {
+            background: rgba(0, 0, 0, 0.25);
+            border-radius: 16px;
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(3.7px);
+            -webkit-backdrop-filter: blur(3.7px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        body.light .glass {
+            background: rgba(255, 255, 255, 0.17);
+            border: 1px solid rgba(255, 255, 255, 0.09);
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+        }
+        .top-bar {
+            height: 60px;
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 0 24px; margin-bottom: 20px;
+        }
+        .logo {
+            color: #fff; font-size: clamp(16px, 3vw, 20px); font-weight: 700;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+        body.light .logo { color: #000; text-shadow: 0 2px 4px rgba(255,255,255,0.3); }
+        .theme-btn {
+            color: #fff; padding: 8px 16px; border-radius: 12px; cursor: pointer;
+            font-size: clamp(12px, 2.5vw, 14px); transition: all 0.3s ease;
+            border: none; font-family: 'Poppins', sans-serif; font-weight: 700;
+        }
+        body.light .theme-btn { color: #000; }
+        .theme-btn:hover { transform: translateY(-1px); }
+        .container {
+            max-width: 1200px; margin: 0 auto; padding: 30px;
+        }
+        .login-box {
+            max-width: 400px; margin: 100px auto; padding: 40px;
+        }
+        .name-input {
+            background: rgba(255, 255, 255, 0.15); border: 1px solid rgba(255, 255, 255, 0.3);
+            backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px); border-radius: 12px;
+            padding: 14px 24px; font-size: 16px; color: #fff; width: 100%; 
+            margin-bottom: 15px; outline: none; transition: all 0.3s ease; font-family: 'Poppins', sans-serif;
+        }
+        .name-input::placeholder { color: rgba(255, 255, 255, 0.6); }
+        .name-input:focus {
+            background: rgba(255, 255, 255, 0.25); border: 1px solid rgba(255, 255, 255, 0.5);
+            box-shadow: 0 0 20px rgba(255,255,255,0.2);
+        }
+        body.light .name-input {
+            background: rgba(0, 0, 0, 0.1); border: 1px solid rgba(0, 0, 0, 0.2); color: #000;
+        }
+        body.light .name-input::placeholder { color: rgba(0, 0, 0, 0.5); }
+        body.light .name-input:focus {
+            background: rgba(0, 0, 0, 0.15); border: 1px solid rgba(0, 0, 0, 0.3);
+            box-shadow: 0 0 20px rgba(0,0,0,0.1);
+        }
+        .btn {
+            width: 100%; padding: 14px 20px; font-size: 16px; font-weight: 700; 
+            color: #fff; cursor: pointer; transition: all 0.3s ease; 
+            text-shadow: 0 2px 4px rgba(0,0,0,0.3); border: none;
+            font-family: 'Poppins', sans-serif; display: flex; align-items: center; 
+            justify-content: center; gap: 8px; border-radius: 12px;
+        }
+        body.light .btn { color: #000; text-shadow: 0 2px 4px rgba(255,255,255,0.3); }
+        .btn:hover { transform: translateY(-2px); }
+        .btn-primary { background: rgba(76, 175, 80, 0.3); }
+        .btn-primary:hover { background: rgba(76, 175, 80, 0.5); }
+        .btn-danger { background: rgba(239, 68, 68, 0.3); }
+        .btn-danger:hover { background: rgba(239, 68, 68, 0.5); }
+        .hidden { display: none !important; }
+        .error { color: #ff5555; font-size: 14px; text-align: center; margin: 10px 0; }
+        .success { color: #4ade80; font-size: 14px; text-align: center; margin: 10px 0; }
+        h1 { text-align: center; margin-bottom: 30px; font-size: 2rem; }
+        h2 { margin: 20px 0 15px; font-size: 1.3rem; }
+        .stats-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px; margin-bottom: 30px;
+        }
+        .stat-card {
+            padding: 20px; text-align: center;
+        }
+        .stat-value {
+            font-size: 2rem; font-weight: 900; margin: 10px 0;
+        }
+        .stat-label {
+            font-size: 0.9rem; opacity: 0.7;
+        }
+        .lobby-table {
+            width: 100%; border-collapse: collapse; margin-top: 20px;
+        }
+        .lobby-table th {
+            text-align: left; padding: 12px; border-bottom: 2px solid rgba(255,255,255,0.2);
+            font-size: 0.9rem; opacity: 0.8;
+        }
+        .lobby-table td {
+            padding: 12px; border-bottom: 1px solid rgba(255,255,255,0.1);
+            font-size: 0.95rem;
+        }
+        .lobby-table tr:hover {
+            background: rgba(255,255,255,0.05);
+        }
+        .status-badge {
+            padding: 4px 12px; border-radius: 20px; font-size: 0.8rem; font-weight: 700;
+            display: inline-block;
+        }
+        .status-waiting { background: rgba(234, 179, 8, 0.3); color: #fbbf24; }
+        .status-playing { background: rgba(34, 197, 94, 0.3); color: #4ade80; }
+        .status-finished { background: rgba(107, 114, 128, 0.3); color: #9ca3af; }
+        .btn-small {
+            padding: 6px 12px; font-size: 0.85rem; width: auto;
+        }
+        .refresh-btn {
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="top-bar glass">
+        <div class="logo"><i class="fa-solid fa-shield-halved"></i> Admin Panel</div>
+        <button class="theme-btn glass" onclick="toggleTheme()"><i class="fa-solid fa-sun"></i> Theme</button>
+    </div>
+
+    <!-- Login Screen -->
+    <div class="login-box glass" id="loginBox">
+        <h1><i class="fa-solid fa-lock"></i> Admin Login</h1>
+        <input type="text" class="name-input" id="adminUser" placeholder="Username">
+        <input type="password" class="name-input" id="adminPass" placeholder="Password">
+        <button class="btn btn-primary glass" onclick="adminLogin()">
+            <i class="fa-solid fa-right-to-bracket"></i> Login
+        </button>
+        <div class="error" id="loginError"></div>
+    </div>
+
+    <!-- Dashboard -->
+    <div class="container glass hidden" id="dashboard">
+        <h1><i class="fa-solid fa-gauge-high"></i> Lobby Management</h1>
+        
+        <button class="btn btn-primary glass refresh-btn" onclick="loadLobbies()">
+            <i class="fa-solid fa-rotate"></i> Refresh Lobbies
+        </button>
+
+        <div class="stats-grid" id="statsGrid"></div>
+
+        <h2>All Lobbies</h2>
+        <div style="overflow-x: auto;">
+            <table class="lobby-table">
+                <thead>
+                    <tr>
+                        <th>Code</th>
+                        <th>Name</th>
+                        <th>Host</th>
+                        <th>Players</th>
+                        <th>Status</th>
+                        <th>Phase</th>
+                        <th>Created</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody id="lobbyTableBody">
+                    <tr><td colspan="8" style="text-align:center;opacity:0.6;">Loading...</td></tr>
+                </tbody>
+            </table>
+        </div>
+        <div class="error" id="dashboardError"></div>
+        <div class="success" id="dashboardSuccess"></div>
+    </div>
+
+    <script>
+        const API = '/api/game';
+        let adminToken = localStorage.getItem('exile_admin_token');
+
+        function toggleTheme() {
+            document.body.classList.toggle('light');
+            const btn = document.querySelector('.theme-btn');
+            if (document.body.classList.contains('light')) {
+                btn.innerHTML = '<i class="fa-solid fa-moon"></i> Theme';
+                localStorage.setItem('theme', 'light');
+            } else {
+                btn.innerHTML = '<i class="fa-solid fa-sun"></i> Theme';
+                localStorage.setItem('theme', 'dark');
+            }
+        }
+
+        const savedTheme = localStorage.getItem('theme');
+        if (savedTheme === 'light') {
+            document.body.classList.add('light');
+            document.querySelector('.theme-btn').innerHTML = '<i class="fa-solid fa-moon"></i> Theme';
+        }
+
+        async function adminLogin() {
+            const username = document.getElementById('adminUser').value.trim();
+            const password = document.getElementById('adminPass').value.trim();
+            
+            if (!username || !password) {
+                document.getElementById('loginError').textContent = 'Enter credentials';
+                return;
+            }
+
+            try {
+                const res = await fetch(API, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'admin_login', username, password })
+                });
+                const data = await res.json();
+                
+                if (data.success) {
+                    adminToken = data.token;
+                    localStorage.setItem('exile_admin_token', adminToken);
+                    document.getElementById('loginBox').classList.add('hidden');
+                    document.getElementById('dashboard').classList.remove('hidden');
+                    loadLobbies();
+                } else {
+                    document.getElementById('loginError').textContent = data.error || 'Login failed';
+                }
+            } catch (e) {
+                document.getElementById('loginError').textContent = 'Server error';
+            }
+        }
+
+        async function loadLobbies() {
+            if (!adminToken) return;
+            
+            try {
+                const res = await fetch(API, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'get_all_lobbies', admin_token: adminToken })
+                });
+                const data = await res.json();
+                
+                if (data.error) {
+                    document.getElementById('dashboardError').textContent = data.error;
+                    if (data.error === 'Unauthorized') {
+                        logout();
+                    }
+                    return;
+                }
+
+                renderStats(data.lobbies);
+                renderLobbies(data.lobbies);
+            } catch (e) {
+                document.getElementById('dashboardError').textContent = 'Failed to load lobbies';
+            }
+        }
+
+        function renderStats(lobbies) {
+            const waiting = lobbies.filter(l => l.status === 'waiting').length;
+            const playing = lobbies.filter(l => l.status === 'playing').length;
+            const finished = lobbies.filter(l => l.status === 'finished').length;
+            const totalPlayers = lobbies.reduce((sum, l) => sum + l.players.length, 0);
+
+            document.getElementById('statsGrid').innerHTML = `
+                <div class="stat-card glass">
+                    <div class="stat-label">Total Lobbies</div>
+                    <div class="stat-value">${lobbies.length}</div>
+                </div>
+                <div class="stat-card glass">
+                    <div class="stat-label">Waiting</div>
+                    <div class="stat-value">${waiting}</div>
+                </div>
+                <div class="stat-card glass">
+                    <div class="stat-label">Playing</div>
+                    <div class="stat-value">${playing}</div>
+                </div>
+                <div class="stat-card glass">
+                    <div class="stat-label">Total Players</div>
+                    <div class="stat-value">${totalPlayers}</div>
+                </div>
+            `;
+        }
+
+        function renderLobbies(lobbies) {
+            const tbody = document.getElementById('lobbyTableBody');
+            
+            if (lobbies.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;opacity:0.6;">No lobbies found</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = lobbies.map(l => {
+                const created = new Date(l.created_at).toLocaleString();
+                const host = l.players.find(p => p.uid === l.host_uid);
+                return `
+                    <tr>
+                        <td><strong>${l._id}</strong></td>
+                        <td>${l.name}</td>
+                        <td>${host? host.name : 'N/A'}</td>
+                        <td>${l.players.length}/6</td>
+                        <td><span class="status-badge status-${l.status}">${l.status.toUpperCase()}</span></td>
+                        <td>${l.phase}</td>
+                        <td style="font-size:0.8rem;opacity:0.7;">${created}</td>
+                        <td>
+                            <button class="btn btn-danger glass btn-small" onclick="deleteLobby('${l._id}')">
+                                <i class="fa-solid fa-trash"></i> Delete
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        async function deleteLobby(lobbyId) {
+            if (!confirm(`Delete lobby ${lobbyId}? This cannot be undone!`)) return;
+            
+            try {
+                const res = await fetch(API, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        action: 'delete_lobby', 
+                        lobby_id: lobbyId, 
+                        admin_token: adminToken 
+                    })
+                });
+                const data = await res.json();
+                
+                if (data.success) {
+                    document.getElementById('dashboardSuccess').textContent = data.message;
+                    setTimeout(() => document.getElementById('dashboardSuccess').textContent = '', 3000);
+                    loadLobbies();
+                } else {
+                    document.getElementById('dashboardError').textContent = data.error;
+                }
+            } catch (e) {
+                document.getElementById('dashboardError').textContent = 'Failed to delete';
+            }
+        }
+
+        function logout() {
+            localStorage.removeItem('exile_admin_token');
+            adminToken = null;
+            document.getElementById('dashboard').classList.add('hidden');
+            document.getElementById('loginBox').classList.remove('hidden');
+        }
+
+        // Auto login if token exists
+        if (adminToken) {
+            document.getElementById('loginBox').classList.add('hidden');
+            document.getElementById('dashboard').classList.remove('hidden');
+            loadLobbies();
+        }
+
+        // Enter key login
+        document.getElementById('adminPass').addEventListener('keypress', e => {
+            if (e.key === 'Enter') adminLogin();
+        });
+    </script>
+</body>
+</html>
