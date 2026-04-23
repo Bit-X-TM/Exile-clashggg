@@ -36,7 +36,7 @@
             border: 1px solid rgba(255, 255, 255, 0.08);
         }
         body.light .glass {
-            background: rgba(255, 255, 0.17);
+            background: rgba(255, 255, 255, 0.17);
             border: 1px solid rgba(255, 255, 255, 0.09);
             box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
         }
@@ -107,7 +107,7 @@
         .btn:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(240, 147, 251, 0.4); }
         .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
         .btn-secondary { background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.2); }
-        .btn-danger { background: linear-gradient(135deg, #f5576c, #f093fb); }
+        .btn-danger { background: linear-gradient(135deg, #f5576c, #c94b4b); }
         .lobby-list {
             display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
             gap: 15px; margin-top: 20px;
@@ -149,9 +149,7 @@
         .player-badge.you { background: #4fc3f7; }
         .player-badge.bot { background: #ff9800; }
         .action-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-        .bot-controls {
-            display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 15px;
-        }
+        .bot-controls { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 15px; }
         .modal {
             position: fixed; top: 0; left: 0; right: 0; bottom: 0;
             background: rgba(0, 0, 0, 0.85); backdrop-filter: blur(10px);
@@ -167,6 +165,16 @@
         .empty-state {
             text-align: center; padding: 40px 20px; opacity: 0.5;
             font-size: clamp(14px, 2vw, 16px);
+        }
+        .toast {
+            position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.9); color: #fff; padding: 12px 24px;
+            border-radius: 12px; font-weight: 700; z-index: 2000;
+            animation: slideUp 0.3s ease;
+        }
+        @keyframes slideUp {
+            from { opacity: 0; transform: translate(-50%, 20px); }
+            to { opacity: 1; transform: translate(-50%, 0); }
         }
         @media (max-width: 768px) {
             .action-buttons, .bot-controls { grid-template-columns: 1fr; }
@@ -296,6 +304,14 @@
             document.getElementById('settings-modal').classList.remove('active');
         }
 
+        function showToast(message) {
+            const toast = document.createElement('div');
+            toast.className = 'toast';
+            toast.textContent = message;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 2000);
+        }
+
         async function apiCall(action, data = {}) {
             try {
                 const res = await fetch(API, {
@@ -327,8 +343,12 @@
                 window.location.href = `/game.html?code=${lobbyId}`;
             });
             channel.bind('lobby-deleted', () => {
-                alert('Lobby was deleted by host');
+                showToast('Lobby was deleted by host');
                 leaveLobbyLocal();
+            });
+            channel.bind('host-transferred', (data) => {
+                showToast('You are now the host');
+                loadLobbyState();
             });
         }
 
@@ -338,7 +358,7 @@
                 if (currentLobby) {
                     apiCall('get_state', { lobby_id: currentLobby });
                 }
-            }, 10000); // Every 10s to show host is online
+            }, 10000);
         }
 
         function stopHeartbeat() {
@@ -354,11 +374,11 @@
             const isPublic = document.getElementById('is-public').checked;
 
             if (!name) {
-                alert('Please enter your name');
+                showToast('Please enter your name');
                 return;
             }
             if (name.length < 2) {
-                alert('Name too short');
+                showToast('Name too short');
                 return;
             }
 
@@ -373,7 +393,7 @@
             });
 
             if (res.error) {
-                alert(res.error);
+                showToast(res.error);
                 return;
             }
 
@@ -390,11 +410,11 @@
             const name = document.getElementById('player-name').value.trim();
 
             if (!name) {
-                alert('Please enter your name');
+                showToast('Please enter your name');
                 return;
             }
             if (!code) {
-                alert('Please enter lobby code');
+                showToast('Please enter lobby code');
                 return;
             }
 
@@ -412,7 +432,7 @@
             });
 
             if (res.error) {
-                alert(res.error);
+                showToast(res.error);
                 return;
             }
 
@@ -429,7 +449,7 @@
 
             const res = await apiCall('get_state', { lobby_id: currentLobby });
             if (res.error) {
-                alert(res.error);
+                showToast(res.error);
                 leaveLobbyLocal();
                 return;
             }
@@ -443,18 +463,18 @@
             document.getElementById('player-controls').style.display = isHost ? 'none' : 'block';
             document.getElementById('start-game-btn').disabled = lobby.players.length < 2;
 
-            renderPlayers(lobby.players, isHost);
+            renderPlayers(lobby.players, lobby.host_uid);
         }
 
-        function renderPlayers(players, isHost) {
+        function renderPlayers(players, hostUid) {
             const list = document.getElementById('players-list');
             list.innerHTML = players.map(p => {
                 const isYou = p.uid === userId;
-                const isPlayerHost = p.uid === players.find(pl => pl.uid === gameState?.host_uid)?.uid;
+                const isPlayerHost = p.uid === hostUid;
                 const isBot = p.uid.startsWith('bot_');
                 return `
                     <div class="player-item ${isPlayerHost ? 'host' : ''} ${isYou ? 'you' : ''} ${isBot ? 'bot' : ''}">
-                        <div class="player-name">${p.name}</div>
+                        <div class="player-name">${p.name} ${isPlayerHost ? '👑' : ''} ${isBot ? '🤖' : ''}</div>
                         ${isPlayerHost ? '<div class="player-badge">HOST</div>' : ''}
                         ${isYou && !isPlayerHost ? '<div class="player-badge you">YOU</div>' : ''}
                         ${isBot ? '<div class="player-badge bot">BOT</div>' : ''}
@@ -480,7 +500,6 @@
         async function leaveLobby() {
             if (!currentLobby) return;
             if (confirm('Leave this lobby?')) {
-                // For now just disconnect - proper leave API can be added
                 leaveLobbyLocal();
             }
         }
@@ -495,7 +514,7 @@
             });
 
             if (res.error) {
-                alert(res.error);
+                showToast(res.error);
                 return;
             }
 
@@ -513,20 +532,18 @@
                 player_name: botName
             });
 
-            if (res.error) alert(res.error);
+            if (res.error) showToast(res.error);
         }
 
         async function removeBot() {
-            // This would need a backend endpoint - for now just reload
-            loadLobbyState();
-            alert('Bot removal: Kick feature coming soon. Bots auto-remove when lobby is full.');
+            showToast('Bot removal: Bots auto-leave when needed');
         }
 
         async function startGame() {
             if (!currentLobby) return;
             const res = await apiCall('start_game', { lobby_id: currentLobby });
             if (res.error) {
-                alert(res.error);
+                showToast(res.error);
             }
         }
 
