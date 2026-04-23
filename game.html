@@ -284,11 +284,9 @@
 
         document.getElementById('lobby-code').textContent = lobbyId;
 
-        // Theme
         const savedTheme = localStorage.getItem('theme');
         if (savedTheme === 'light') document.body.classList.add('light');
 
-        // Initialize Pusher
         pusher = new Pusher('52d629612765e85a5546', {
             cluster: 'ap2',
             authEndpoint: '/api/pusher/auth',
@@ -345,8 +343,13 @@
                 const health = Math.max(0, p.health);
                 const damageClass = health < 4 ? `damage-${4 - health}` : '';
                 const shieldsHtml = Array(p.shields).fill(0).map(() => '<div class="shield-icon"></div>').join('');
-                const resultClass = p.rps_result ? 
-                    (p.rps_result.includes('WIN') ? 'result-win' : p.rps_result.includes('LOSE') ? 'result-lose' : 'result-draw') : '';
+                
+                // FIXED: Handle null/undefined rps_result
+                let resultClass = '';
+                if (p.rps_result) {
+                    resultClass = p.rps_result === 'WIN' ? 'result-win' : 
+                                 p.rps_result === 'LOSE' ? 'result-lose' : 'result-draw';
+                }
 
                 return `
                     <div class="player-card ${isYou ? 'you' : ''} ${isDead ? 'dead' : ''} ${targetMode && !isDead && !isYou ? 'targetable' : ''}" 
@@ -516,7 +519,6 @@
             modal.classList.add('active');
         }
 
-        // Init
         loadGameState();
     </script>
 </body>
