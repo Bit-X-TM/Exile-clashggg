@@ -1,7 +1,31 @@
 {
+  "version": 2,
   "functions": {
+    "api/game.js": {
+      "maxDuration": 30
+    },
     "api/pusher/auth.js": {
       "maxDuration": 10
     }
-  }
+  },
+  "rewrites": [
+    {
+      "source": "/game",
+      "destination": "/game.html"
+    },
+    {
+      "source": "/lobby/:code",
+      "destination": "/game.html?code=:code"
+    }
+  ],
+  "headers": [
+    {
+      "source": "/api/(.*)",
+      "headers": [
+        { "key": "Access-Control-Allow-Origin", "value": "*" },
+        { "key": "Access-Control-Allow-Methods", "value": "GET,POST,OPTIONS" },
+        { "key": "Access-Control-Allow-Headers", "value": "Content-Type" }
+      ]
+    }
+  ]
 }
