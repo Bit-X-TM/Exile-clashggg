@@ -28,7 +28,47 @@ const SHOP_ITEMS = {
 };
 
 const PHASE_DURATIONS = { rps: 15, coin: 20 };
+// ඔක්කොම actions වලට කලින් මේක දාන්න
+if (action === 'admin_login') {
+    const { username, password } = req.body;
+    if (username === 'Nethindu' && password === '1234') {
+        return res.json({ success: true, token: 'admin_token_exile_1234' });
+    }
+    return res.json({ error: 'Invalid credentials' });
+}
 
+if (action === 'delete_lobby') {
+    const { lobby_id, admin_token } = req.body;
+    
+    // Simple admin check
+    if (admin_token !== 'admin_token_exile_1234') {
+        return res.json({ error: 'Unauthorized' });
+    }
+
+    const result = await db.collection('lobbies').deleteOne({ _id: lobby_id });
+    
+    if (result.deletedCount > 0) {
+        await pusher.trigger('presence-global', 'lobby-deleted', { lobby_id });
+        return res.json({ success: true, message: 'Lobby deleted' });
+    }
+    return res.json({ error: 'Lobby not found' });
+}
+
+if (action === 'get_all_lobbies') {
+    const { admin_token } = req.body;
+    
+    if (admin_token !== 'admin_token_exile_1234') {
+        return res.json({ error: 'Unauthorized' });
+    }
+
+    const lobbies = await db.collection('lobbies')
+        .find({})
+        .sort({ created_at: -1 })
+        .limit(50)
+        .toArray();
+    
+    return res.json({ lobbies });
+}
 // Auto delete: waiting 1min + no activity, playing 30min, finished 5min
 async function cleanupInactiveLobbies(db) {
     const now = Date.now();
