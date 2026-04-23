@@ -1,8 +1,21 @@
 {
   "name": "exile-clash",
   "version": "1.0.0",
-  "description": "Exile Clash RPS Multiplayer",
+  "description": "Exile Clash - Real-time 2-6 player RPS battle game",
+  "main": "index.html",
+  "scripts": {
+    "dev": "vercel dev",
+    "build": "echo 'No build step needed'",
+    "start": "vercel dev"
+  },
+  "keywords": ["game", "rps", "pusher", "mongodb", "vercel"],
+  "author": "Nethindu",
+  "license": "MIT",
   "dependencies": {
-    "pusher": "^5.2.0"
+    "pusher": "^5.2.0",
+    "mongodb": "^6.3.0"
+  },
+  "engines": {
+    "node": ">=18.x"
   }
 }
