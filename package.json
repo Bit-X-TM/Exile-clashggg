@@ -1,0 +1,8 @@
+{
+  "name": "exile-clash",
+  "version": "1.0.0",
+  "description": "Exile Clash RPS Multiplayer",
+  "dependencies": {
+    "pusher": "^5.2.0"
+  }
+}

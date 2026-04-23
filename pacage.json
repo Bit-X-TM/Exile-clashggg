@@ -1,8 +1,0 @@
-{
-  "name": "exile-clash-rps",
-  "version": "1.0.0",
-  "description": "Rock Paper Scissors Multiplayer",
-  "dependencies": {
-    "pusher": "^5.2.0"
-  }
-}
