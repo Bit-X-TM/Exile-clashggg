@@ -74,6 +74,7 @@
         }
         .player-card.you { border-color: #f093fb; box-shadow: 0 0 25px rgba(240, 147, 251, 0.4); }
         .player-card.dead { opacity: 0.3; filter: grayscale(1); }
+        .player-card.bot { border-color: #ff9800; }
         .player-card.targetable { cursor: pointer; border-color: #f5576c; animation: pulse 1.5s infinite; }
         .player-card.targetable:hover { transform: scale(1.05); box-shadow: 0 0 30px rgba(245, 87, 108, 0.6); }
         @keyframes pulse { 0%, 100% { box-shadow: 0 0 15px rgba(245, 87, 108, 0.4); } 50% { box-shadow: 0 0 25px rgba(245, 87, 108, 0.7); } }
@@ -128,7 +129,7 @@
             display: flex; flex-direction: column; align-items: center; justify-content: center;
             gap: 8px; font-size: clamp(2rem, 5vw, 3rem);
         }
-        .rps-btn:hover { background: rgba(255, 255, 0.15); border-color: #f093fb; transform: scale(1.1); }
+        .rps-btn:hover { background: rgba(255, 255, 255, 0.15); border-color: #f093fb; transform: scale(1.1); }
         .rps-btn.selected { background: linear-gradient(135deg, #f093fb, #f5576c); border-color: transparent; }
         .rps-btn:disabled { opacity: 0.3; cursor: not-allowed; transform: none; }
         .rps-label { font-size: clamp(11px, 2vw, 14px); font-weight: 700; }
@@ -213,6 +214,16 @@
             from { opacity: 0; transform: translate(-50%, -60%); }
             to { opacity: 1; transform: translate(-50%, -50%); }
         }
+        .toast {
+            position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.9); color: #fff; padding: 12px 24px;
+            border-radius: 12px; font-weight: 700; z-index: 2000;
+            animation: slideUp 0.3s ease;
+        }
+        @keyframes slideUp {
+            from { opacity: 0; transform: translate(-50%, 20px); }
+            to { opacity: 1; transform: translate(-50%, 0); }
+        }
     </style>
 </head>
 <body>
@@ -286,7 +297,6 @@
         let channel = null;
         let timerInterval = null;
         let targetMode = null;
-        let lastPhase = null;
 
         if (!lobbyId || !userId) {
             alert('Invalid game');
@@ -309,7 +319,11 @@
         channel.bind('game-started', () => loadGameState());
         channel.bind('rps-resolved', () => loadGameState());
         channel.bind('rps-draw', (data) => {
-            showDrawAlert(data.message);
+            showToast(data.message);
+            loadGameState();
+        });
+        channel.bind('host-transferred', (data) => {
+            showToast('Host transferred to new player');
             loadGameState();
         });
         channel.bind('game-ended', (data) => showGameOver(data.winner));
@@ -346,7 +360,6 @@
             renderPhase();
             renderHostControls();
             updateTimer();
-            lastPhase = gameState.phase;
         }
 
         function renderPlayers() {
@@ -356,6 +369,8 @@
             grid.innerHTML = gameState.players.map(p => {
                 const isYou = p.uid === userId;
                 const isDead = p.is_dead;
+                const isHost = p.uid === gameState.host_uid;
+                const isBot = p.uid.startsWith('bot_');
                 const health = Math.max(0, p.health);
                 const damageClass = health < 4 ? `damage-${4 - health}` : '';
                 const shieldsHtml = Array(p.shields || 0).fill(0).map(() => '<div class="shield-icon"></div>').join('');
@@ -367,7 +382,7 @@
                 }
 
                 return `
-                    <div class="player-card ${isYou ? 'you' : ''} ${isDead ? 'dead' : ''} ${targetMode && !isDead && !isYou ? 'targetable' : ''}" 
+                    <div class="player-card ${isYou ? 'you' : ''} ${isDead ? 'dead' : ''} ${isBot ? 'bot' : ''} ${targetMode && !isDead && !isYou ? 'targetable' : ''}" 
                          onclick="${targetMode && !isDead && !isYou ? `useItemOn('${p.uid}')` : ''}">
                         ${p.rps_result ? `<div class="rps-result ${resultClass}">${p.rps_result}</div>` : ''}
                         <div class="shields">${shieldsHtml}</div>
@@ -375,7 +390,7 @@
                             <div class="island-img ${damageClass}" style="background-image: url('img/il/${p.island}.png')">
                                 <div class="island-damage" style="background-image: url('img/il/${p.island}.png')"></div>
                             </div>
-                        <div class="player-name">${p.name} ${isYou ? '(You)' : ''}</div>
+                        <div class="player-name">${p.name} ${isYou ? '(You)' : ''} ${isHost ? '👑' : ''} ${isBot ? '🤖' : ''}</div>
                         <div class="player-stats">
                             <div class="stat"><i class="fa-solid fa-heart"></i> ${health}</div>
                             <div class="stat"><i class="fa-solid fa-coins"></i> ${p.coins}</div>
@@ -511,7 +526,7 @@
 
         async function buyItem(item) {
             const res = await apiCall('buy_item', { uid: userId, item });
-            if (res.error) alert(res.error);
+            if (res.error) showToast(res.error);
         }
 
         function selectTarget(item) {
@@ -523,7 +538,7 @@
         async function useItemOn(targetUid) {
             if (!targetMode) return;
             const res = await apiCall('use_item', { uid: userId, item: targetMode, target_uid: targetUid });
-            if (res.error) alert(res.error);
+            if (res.error) showToast(res.error);
             targetMode = null;
             document.getElementById('target-hint').style.display = 'none';
             renderPlayers();
@@ -533,12 +548,12 @@
             await apiCall('next_round');
         }
 
-        function showDrawAlert(message) {
-            const alert = document.createElement('div');
-            alert.className = 'draw-alert';
-            alert.textContent = message;
-            document.body.appendChild(alert);
-            setTimeout(() => alert.remove(), 2000);
+        function showToast(message) {
+            const toast = document.createElement('div');
+            toast.className = 'toast';
+            toast.textContent = message;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 2000);
         }
 
         function showGameOver(winner) {
