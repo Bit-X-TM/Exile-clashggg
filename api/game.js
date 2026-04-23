@@ -1,282 +1,410 @@
-import { MongoClient } from 'mongodb';
-import Pusher from 'pusher';
+const { MongoClient } = require('mongodb');
+const Pusher = require('pusher');
 
-const client = new MongoClient(process.env.MONGODB_URI);
+let cachedClient = null;
+let cachedDb = null;
+
+async function connectToDatabase() {
+    if (cachedClient && cachedDb) return { client: cachedClient, db: cachedDb };
+    const client = await MongoClient.connect(process.env.MONGODB_URI);
+    const db = client.db('exile_clash');
+    cachedClient = client;
+    cachedDb = db;
+    return { client, db };
+}
+
 const pusher = new Pusher({
-  appId: process.env.PUSHER_APP_ID,
-  key: "52d629612765e85a5546",
-  secret: process.env.PUSHER_SECRET,
-  cluster: "ap2",
-  useTLS: true
+    appId: process.env.PUSHER_APP_ID,
+    key: '52d629612765e85a5546',
+    secret: process.env.PUSHER_SECRET,
+    cluster: 'ap2',
+    useTLS: true
 });
 
-let cachedDb = null;
-async function connectDB() {
-  if (cachedDb) return cachedDb;
-  await client.connect();
-  cachedDb = client.db('exile_clash');
-  return cachedDb;
+const SHOP_ITEMS = {
+    shields: { cost: 1, max: 3 },
+    canon: { cost: 1, max: 3 },
+    slicer: { cost: 1, max: 3 }
+};
+
+const PHASE_DURATIONS = { rps: 15, coin: 20 };
+
+// Auto delete: waiting 1min + no activity, playing 30min, finished 5min
+async function cleanupInactiveLobbies(db) {
+    const now = Date.now();
+    const oneMinAgo = new Date(now - 60 * 1000);
+    const thirtyMinAgo = new Date(now - 30 * 60 * 1000);
+    const fiveMinAgo = new Date(now - 5 * 60 * 1000);
+
+    const result = await db.collection('lobbies').deleteMany({
+        $or: [
+            { status: 'waiting', players: { $size: 1 }, updated_at: { $lt: oneMinAgo } }, // Host විතරක් 1min
+            { status: 'playing', updated_at: { $lt: thirtyMinAgo } },
+            { status: 'finished', updated_at: { $lt: fiveMinAgo } }
+        ]
+    });
+    if (result.deletedCount > 0) {
+        console.log(`Deleted ${result.deletedCount} inactive lobbies`);
+    }
 }
 
-export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, GET, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-  if (req.method === 'OPTIONS') return res.status(200).end();
+// Check if all alive players have 0 coins -> auto next round
+async function checkAllCoinsZero(lobbyId, db) {
+    const lobby = await db.collection('lobbies').findOne({ _id: lobbyId });
+    if (!lobby || lobby.phase!== 'coin') return;
 
-  const action = req.method === 'POST'? req.body.action : req.query.action;
-  const lobbyId = req.method === 'POST'? req.body.lobby_id : req.query.lobby_id;
+    const alivePlayers = lobby.players.filter(p =>!p.is_dead);
+    const allZero = alivePlayers.every(p => p.coins === 0 && p.canon === 0 && p.slicer === 0);
 
-  const db = await connectDB();
-  const lobbies = db.collection('lobbies');
+    if (allZero && alivePlayers.length > 1) {
+        await startNextRound(lobbyId, db);
+    }
+}
 
-  try {
-    switch(action) {
-      case 'create_lobby': {
-        const { uid, name, is_public, player_name } = req.body;
-        const id = Math.random().toString(36).substring(2, 8).toUpperCase();
-        const island = Math.floor(Math.random() * 6) + 1;
+async function startNextRound(lobbyId, db) {
+    const phaseEndTime = Math.floor(Date.now() / 1000) + PHASE_DURATIONS.rps;
 
-        const lobby = {
-          _id: id,
-          name: name || 'Exile Clash',
-          is_public: is_public?? 1,
-          host_uid: uid,
-          status: 'waiting',
-          phase: 'rps',
-          phase_end_time: 0,
-          round: 0,
-          created_at: new Date(),
-          players: [{
-            uid, name: player_name, island,
-            coins: 0, shields: 0, health: 4,
-            canon: 0, slicer: 0, rps_choice: null,
-            rps_result: null, is_dead: false,
-            joined_at: new Date()
-          }]
-        };
+    await db.collection('lobbies').updateOne(
+        { _id: lobbyId },
+        {
+            $set: {
+                phase: 'rps',
+                phase_end_time: phaseEndTime,
+                'players.$[].rps_choice': null,
+                'players.$[].rps_result': null,
+                updated_at: new Date()
+            }
+        }
+    );
 
-        await lobbies.insertOne(lobby);
-        return res.json({ success: true, lobby_id: id });
-      }
+    setTimeout(async () => {
+        await resolveRPSPhase(lobbyId, db);
+    }, PHASE_DURATIONS.rps * 1000);
 
-      case 'join_lobby': {
-        const { uid, player_name } = req.body;
-        const lobby = await lobbies.findOne({ _id: lobbyId });
+    await pusher.trigger(`game-${lobbyId}`, 'state-update', {});
+}
 
-        if (!lobby) return res.status(404).json({ error: 'Lobby not found' });
-        if (lobby.status!== 'waiting') return res.status(400).json({ error: 'Game already started' });
-        if (lobby.players.length >= 6) return res.status(400).json({ error: 'Lobby full' });
-        if (lobby.players.find(p => p.uid === uid)) {
-          return res.json({ success: true }); // Already joined
+async function resolveRPSPhase(lobbyId, db) {
+    const lobby = await db.collection('lobbies').findOne({ _id: lobbyId });
+    if (!lobby || lobby.phase!== 'rps') return;
+
+    const alivePlayers = lobby.players.filter(p =>!p.is_dead);
+    const choices = ['rock', 'paper', 'scissors'];
+
+    const updates = [];
+    for (const player of alivePlayers) {
+        if (!player.rps_choice) {
+            const randomChoice = choices[Math.floor(Math.random() * 3)];
+            updates.push({
+                updateOne: {
+                    filter: { _id: lobbyId, 'players.uid': player.uid },
+                    update: { $set: { 'players.$.rps_choice': randomChoice } }
+                }
+            });
+        }
+    }
+    if (updates.length > 0) await db.bulkWrite(updates);
+
+    const updatedLobby = await db.collection('lobbies').findOne({ _id: lobbyId });
+    const players = updatedLobby.players.filter(p =>!p.is_dead);
+
+    for (let i = 0; i < players.length; i++) {
+        let wins = 0;
+        const p1 = players[i];
+
+        for (let j = 0; j < players.length; j++) {
+            if (i === j) continue;
+            const p2 = players[j];
+
+            if (
+                (p1.rps_choice === 'rock' && p2.rps_choice === 'scissors') ||
+                (p1.rps_choice === 'paper' && p2.rps_choice === 'rock') ||
+                (p1.rps_choice === 'scissors' && p2.rps_choice === 'paper')
+            ) {
+                wins++;
+            }
         }
 
-        const taken = lobby.players.map(p => p.island);
-        const available = [1,2,3,4,5,6].filter(i =>!taken.includes(i));
-        const island = available[Math.floor(Math.random() * available.length)];
+        let result = 'DRAW';
+        if (wins > players.length / 2) result = 'WIN';
+        else if (wins < players.length / 2 - 1) result = 'LOSE';
 
-        await lobbies.updateOne(
-          { _id: lobbyId },
-          { $push: { players: {
-            uid, name: player_name, island,
-            coins: 0, shields: 0, health: 4,
-            canon: 0, slicer: 0, rps_choice: null,
-            rps_result: null, is_dead: false,
-            joined_at: new Date()
-          }}}
+        await db.collection('lobbies').updateOne(
+            { _id: lobbyId, 'players.uid': p1.uid },
+            {
+                $set: {
+                    'players.$.rps_result': result,
+                    'players.$.coins': wins
+                }
+            }
         );
+    }
 
-        await pusher.trigger(`game-${lobbyId}`, 'state-update', {});
-        return res.json({ success: true });
-      }
+    const coinPhaseEnd = Math.floor(Date.now() / 1000) + PHASE_DURATIONS.coin;
+    await db.collection('lobbies').updateOne(
+        { _id: lobbyId },
+        {
+            $set: {
+                phase: 'coin',
+                phase_end_time: coinPhaseEnd,
+                updated_at: new Date()
+            }
+        }
+    );
 
-      case 'start_game': {
-        const lobby = await lobbies.findOne({ _id: lobbyId });
-        if (!lobby) return res.status(404).json({ error: 'Lobby not found' });
-        if (lobby.players.length < 2) return res.status(400).json({ error: 'Need 2+ players' });
+    await pusher.trigger(`game-${lobbyId}`, 'rps-resolved', {});
 
-        await lobbies.updateOne(
-          { _id: lobbyId },
-          { $set: {
-            status: 'playing',
-            phase: 'rps',
-            phase_end_time: Math.floor(Date.now()/1000) + 15,
-            round: 1
-          }}
-        );
-        await pusher.trigger(`game-${lobbyId}`, 'game-started', {});
-        return res.json({ success: true });
-      }
+    // Auto check if everyone gets 0 coins
+    setTimeout(() => checkAllCoinsZero(lobbyId, db), 1000);
+}
 
-      case 'rps_choice': {
-        const { uid, choice } = req.body;
-        await lobbies.updateOne(
-          { _id: lobbyId, 'players.uid': uid, 'players.is_dead': false },
-          { $set: { 'players.$.rps_choice': choice }}
-        );
+module.exports = async (req, res) => {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
-        const lobby = await lobbies.findOne({ _id: lobbyId });
-        const alive = lobby.players.filter(p =>!p.is_dead);
-        const allChosen = alive.every(p => p.rps_choice!== null);
+    if (req.method === 'OPTIONS') return res.status(200).end();
 
-        if (allChosen && alive.length > 0) {
-          const updates = [];
-          const allSame = alive.every(p => p.rps_choice === alive[0].rps_choice);
+    try {
+        const { db } = await connectToDatabase();
+        await cleanupInactiveLobbies(db);
 
-          for (let p of alive) {
-            let wins = 0;
-            if (!allSame) {
-              for (let opp of alive) {
-                if (p.uid === opp.uid) continue;
-                const c1 = p.rps_choice, c2 = opp.rps_choice;
-                if ((c1=='rock'&&c2=='scissors')||(c1=='paper'&&c2=='rock')||(c1=='scissors'&&c2=='paper')) wins++;
-              }
+        const { action } = req.method === 'GET'? req.query : req.body;
+
+        if (action === 'create_lobby') {
+            const { uid, name, is_public, player_name } = req.body;
+            const lobbyId = Math.random().toString(36).substring(2, 8).toUpperCase();
+            const now = new Date();
+
+            const lobby = {
+                _id: lobbyId,
+                name: name || 'Exile Clash',
+                is_public: is_public || 0,
+                host_uid: uid,
+                status: 'waiting',
+                phase: 'lobby',
+                players: [{
+                    uid,
+                    name: player_name || 'Player',
+                    island: Math.floor(Math.random() * 6) + 1,
+                    health: 4,
+                    coins: 0,
+                    shields: 0,
+                    canon: 0,
+                    slicer: 0,
+                    rps_choice: null,
+                    rps_result: null,
+                    is_dead: false,
+                    joined_at: now
+                }],
+                created_at: now,
+                updated_at: now,
+                phase_end_time: null
+            };
+
+            await db.collection('lobbies').insertOne(lobby);
+            await pusher.trigger('presence-global', 'lobby-created', { lobby_id: lobbyId });
+            return res.json({ success: true, lobby_id: lobbyId });
+        }
+
+        if (action === 'join_lobby') {
+            const { lobby_id, uid, player_name } = req.body;
+            const lobby = await db.collection('lobbies').findOne({ _id: lobby_id });
+
+            if (!lobby) return res.json({ error: 'Lobby not found' });
+            if (lobby.status!== 'waiting') return res.json({ error: 'Game already started' });
+            if (lobby.players.length >= 6) return res.json({ error: 'Lobby full' });
+            if (lobby.players.find(p => p.uid === uid)) return res.json({ success: true });
+
+            const now = new Date();
+            await db.collection('lobbies').updateOne(
+                { _id: lobby_id },
+                {
+                    $push: {
+                        players: {
+                            uid,
+                            name: player_name || 'Player',
+                            island: Math.floor(Math.random() * 6) + 1,
+                            health: 4,
+                            coins: 0,
+                            shields: 0,
+                            canon: 0,
+                            slicer: 0,
+                            rps_choice: null,
+                            rps_result: null,
+                            is_dead: false,
+                            joined_at: now
+                        }
+                    },
+                    $set: { updated_at: now }
+                }
+            );
+
+            await pusher.trigger(`game-${lobby_id}`, 'state-update', {});
+            return res.json({ success: true });
+        }
+
+        if (action === 'get_state') {
+            const { lobby_id } = req.body;
+            const lobby = await db.collection('lobbies').findOne({ _id: lobby_id });
+            if (!lobby) return res.json({ error: 'Lobby not found' });
+
+            await db.collection('lobbies').updateOne(
+                { _id: lobby_id },
+                { $set: { updated_at: new Date() } }
+            );
+
+            return res.json({ lobby });
+        }
+
+        if (action === 'get_public_lobbies') {
+            const lobbies = await db.collection('lobbies')
+               .find({ is_public: 1, status: 'waiting' })
+               .sort({ created_at: -1 })
+               .limit(10)
+               .toArray();
+            return res.json({ lobbies });
+        }
+
+        if (action === 'start_game') {
+            const { lobby_id } = req.body;
+            const lobby = await db.collection('lobbies').findOne({ _id: lobby_id });
+
+            if (!lobby) return res.json({ error: 'Lobby not found' });
+            if (lobby.players.length < 2) return res.json({ error: 'Need at least 2 players' });
+
+            const phaseEndTime = Math.floor(Date.now() / 1000) + PHASE_DURATIONS.rps;
+            await db.collection('lobbies').updateOne(
+                { _id: lobby_id },
+                {
+                    $set: {
+                        status: 'playing',
+                        phase: 'rps',
+                        phase_end_time: phaseEndTime,
+                        updated_at: new Date()
+                    }
+                }
+            );
+
+            await pusher.trigger(`game-${lobby_id}`, 'game-started', {});
+            setTimeout(async () => {
+                await resolveRPSPhase(lobby_id, db);
+            }, PHASE_DURATIONS.rps * 1000);
+
+            return res.json({ success: true });
+        }
+
+        if (action === 'rps_choice') {
+            const { lobby_id, uid, choice } = req.body;
+            if (!['rock', 'paper', 'scissors'].includes(choice)) {
+                return res.json({ error: 'Invalid choice' });
             }
 
-            const result = allSame? 'DRAW - SKIP' : (wins > 0? `WIN +${wins}` : 'LOSE');
-            const coinsToAdd = allSame? 0 : wins;
-
-            updates.push({
-              updateOne: {
-                filter: { _id: lobbyId, 'players.uid': p.uid },
-                update: {
-                  $inc: { 'players.$.coins': coinsToAdd },
-                  $set: { 'players.$.rps_result': result }
+            await db.collection('lobbies').updateOne(
+                { _id: lobby_id, 'players.uid': uid },
+                {
+                    $set: {
+                        'players.$.rps_choice': choice,
+                        updated_at: new Date()
+                    }
                 }
-              }
-            });
-          }
-
-          if (updates.length) await lobbies.bulkWrite(updates);
-
-          await lobbies.updateOne(
-            { _id: lobbyId },
-            { $set: {
-              phase: 'coin',
-              phase_end_time: Math.floor(Date.now()/1000) + 20,
-              'players.$[].rps_choice': null // Reset for next round
-            }}
-          );
-          await pusher.trigger(`game-${lobbyId}`, 'rps-resolved', {});
-        }
-
-        await pusher.trigger(`game-${lobbyId}`, 'state-update', {});
-        return res.json({ success: true });
-      }
-
-      case 'buy_item': {
-        const { uid, item } = req.body;
-        if (!['canon', 'slicer', 'shields'].includes(item)) {
-          return res.status(400).json({ error: 'Invalid item' });
-        }
-
-        const lobby = await lobbies.findOne({ _id: lobbyId, 'players.uid': uid });
-        const p = lobby?.players.find(pl => pl.uid === uid);
-        if (!p || p.is_dead) return res.status(400).json({ error: 'Player not found' });
-        if (p.coins < 1) return res.status(400).json({ error: 'No coins' });
-        if (p[item] >= 3) return res.status(400).json({ error: `Max ${item}s` });
-
-        await lobbies.updateOne(
-          { _id: lobbyId, 'players.uid': uid },
-          { $inc: { 'players.$.coins': -1, [`players.$.${item}`]: 1 }}
-        );
-
-        await pusher.trigger(`game-${lobbyId}`, 'state-update', {});
-        return res.json({ success: true });
-      }
-
-      case 'use_item': {
-        const { uid, item, target_uid } = req.body;
-        if (!['canon', 'slicer'].includes(item)) {
-          return res.status(400).json({ error: 'Invalid item' });
-        }
-
-        const useResult = await lobbies.updateOne(
-          { _id: lobbyId, 'players.uid': uid, 'players.is_dead': false, [`players.${item}`]: { $gte: 1 } },
-          { $inc: { [`players.$.${item}`]: -1 }}
-        );
-        if (useResult.modifiedCount === 0) return res.status(400).json({ error: 'No item or dead' });
-
-        if (item === 'canon') {
-          await lobbies.updateOne(
-            { _id: lobbyId, 'players.uid': target_uid, 'players.shields': { $gt: 0 }, 'players.is_dead': false },
-            { $inc: { 'players.$.shields': -1 }}
-          );
-        } else if (item === 'slicer') {
-          const targetResult = await lobbies.updateOne(
-            { _id: lobbyId, 'players.uid': target_uid, 'players.shields': 0, 'players.is_dead': false },
-            { $inc: { 'players.$.health': -1 }}
-          );
-          if (targetResult.modifiedCount > 0) {
-            await lobbies.updateOne(
-              { _id: lobbyId, 'players.uid': target_uid, 'players.health': { $lte: 0 } },
-              { $set: { 'players.$.is_dead': true }}
             );
-          }
+
+            await pusher.trigger(`game-${lobby_id}`, 'state-update', {});
+            return res.json({ success: true });
         }
 
-        const lobby = await lobbies.findOne({ _id: lobbyId });
-        const alive = lobby.players.filter(pl =>!pl.is_dead);
+        if (action === 'buy_item') {
+            const { lobby_id, uid, item } = req.body;
+            const lobby = await db.collection('lobbies').findOne({ _id: lobby_id });
+            const player = lobby.players.find(p => p.uid === uid);
 
-        if (alive.length <= 1) {
-          await lobbies.updateOne(
-            { _id: lobbyId },
-            { $set: { status: 'finished', phase: 'finished' }}
-          );
-          await pusher.trigger(`game-${lobbyId}`, 'game-ended', { winner: alive[0] || null });
+            if (!player || player.is_dead) return res.json({ error: 'Invalid player' });
+            if (lobby.phase!== 'coin') return res.json({ error: 'Not coin phase' });
+
+            const itemData = SHOP_ITEMS[item];
+            if (!itemData) return res.json({ error: 'Invalid item' });
+            if (player.coins < itemData.cost) return res.json({ error: 'Not enough coins' });
+            if (player[item] >= itemData.max) return res.json({ error: 'Max items reached' });
+
+            await db.collection('lobbies').updateOne(
+                { _id: lobby_id, 'players.uid': uid },
+                {
+                    $inc: {
+                        'players.$.coins': -itemData.cost,
+                        [`players.$.${item}`]: 1
+                    },
+                    $set: { updated_at: new Date() }
+                }
+            );
+
+            await pusher.trigger(`game-${lobby_id}`, 'state-update', {});
+            await checkAllCoinsZero(lobby_id, db);
+            return res.json({ success: true });
         }
 
-        await pusher.trigger(`game-${lobbyId}`, 'state-update', {});
-        return res.json({ success: true });
-      }
+        if (action === 'use_item') {
+            const { lobby_id, uid, item, target_uid } = req.body;
+            const lobby = await db.collection('lobbies').findOne({ _id: lobby_id });
+            const player = lobby.players.find(p => p.uid === uid);
+            const target = lobby.players.find(p => p.uid === target_uid);
 
-      case 'next_round': {
-        const lobby = await lobbies.findOne({ _id: lobbyId });
-        const alive = lobby.players.filter(p =>!p.is_dead);
+            if (!player ||!target || player.is_dead || target.is_dead) {
+                return res.json({ error: 'Invalid players' });
+            }
+            if (lobby.phase!== 'coin') return res.json({ error: 'Not coin phase' });
+            if (player[item] <= 0) return res.json({ error: 'No items' });
 
-        if (alive.length <= 1) {
-          await lobbies.updateOne(
-            { _id: lobbyId },
-            { $set: { status: 'finished', phase: 'finished' }}
-          );
-          await pusher.trigger(`game-${lobbyId}`, 'game-ended', {});
-          return res.json({ success: true, ended: true });
+            let updates = { $inc: { [`players.$[p].${item}`]: -1 }, $set: { updated_at: new Date() } };
+            let arrayFilters = [{ 'p.uid': uid }];
+
+            if (item === 'canon') {
+                if (target.shields > 0) {
+                    updates.$inc['players.$[t].shields'] = -1;
+                    arrayFilters.push({ 't.uid': target_uid });
+                }
+            } else if (item === 'slicer') {
+                if (target.shields === 0) {
+                    const newHealth = Math.max(0, target.health - 1);
+                    updates.$set['players.$[t].health'] = newHealth;
+                    if (newHealth === 0) updates.$set['players.$[t].is_dead'] = true;
+                    arrayFilters.push({ 't.uid': target_uid });
+                }
+            }
+
+            await db.collection('lobbies').updateOne(
+                { _id: lobby_id },
+                updates,
+                { arrayFilters }
+            );
+
+            const updatedLobby = await db.collection('lobbies').findOne({ _id: lobby_id });
+            const alivePlayers = updatedLobby.players.filter(p =>!p.is_dead);
+
+            if (alivePlayers.length === 1) {
+                await db.collection('lobbies').updateOne(
+                    { _id: lobby_id },
+                    { $set: { status: 'finished', phase: 'finished', updated_at: new Date() } }
+                );
+                await pusher.trigger(`game-${lobby_id}`, 'game-ended', { winner: alivePlayers[0] });
+            } else {
+                await pusher.trigger(`game-${lobby_id}`, 'state-update', {});
+                await checkAllCoinsZero(lobby_id, db);
+            }
+
+            return res.json({ success: true });
         }
 
-        await lobbies.updateOne(
-          { _id: lobbyId },
-          { $set: {
-            phase: 'rps',
-            phase_end_time: Math.floor(Date.now()/1000) + 15,
-            round: lobby.round + 1,
-            'players.$[].rps_choice': null,
-            'players.$[].rps_result': null
-          }}
-        );
+        if (action === 'next_round') {
+            const { lobby_id } = req.body;
+            await startNextRound(lobby_id, db);
+            return res.json({ success: true });
+        }
 
-        await pusher.trigger(`game-${lobbyId}`, 'state-update', {});
-        return res.json({ success: true });
-      }
+        return res.json({ error: 'Invalid action' });
 
-      case 'get_state': {
-        const lobby = await lobbies.findOne({ _id: lobbyId });
-        if (!lobby) return res.status(404).json({ error: 'Lobby not found' });
-        return res.json({ lobby, players: lobby.players });
-      }
-
-      case 'get_public_lobbies': {
-        const publicLobbies = await lobbies.find({
-          is_public: 1,
-          status: 'waiting'
-        }).limit(20).toArray();
-        return res.json({ lobbies: publicLobbies });
-      }
-
-      default:
-        return res.status(400).json({ error: 'Invalid action' });
+    } catch (error) {
+        console.error('API Error:', error);
+        return res.json({ error: 'Server error' });
     }
-  } catch (e) {
-    console.error('API Error:', e);
-    return res.status(500).json({ error: e.message });
-  }
-}
+};
