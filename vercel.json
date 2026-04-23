@@ -1,0 +1,7 @@
+{
+  "functions": {
+    "api/pusher/auth.js": {
+      "maxDuration": 10
+    }
+  }
+}
