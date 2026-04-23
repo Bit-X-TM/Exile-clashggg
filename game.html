@@ -55,7 +55,7 @@
         .phase-info { text-align: right; }
         .phase-name {
             font-size: clamp(14px, 2.5vw, 18px); font-weight: 700;
-            color: #f093fb; text-shadow: 0 2px 8px rgba(240,147,251,0.5);
+            color: #4fc3f7; text-shadow: 0 2px 8px rgba(79,195,247,0.5);
         }
         .timer { font-size: clamp(24px, 4vw, 32px); font-weight: 900; margin-top: 4px; }
         .game-area {
@@ -63,7 +63,7 @@
             padding: clamp(15px, 3vw, 25px); overflow-y: auto;
         }
         .players-grid {
-            display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
             gap: clamp(15px, 2vw, 20px); margin-bottom: 25px;
         }
         @media (max-width: 768px) { .players-grid { grid-template-columns: repeat(2, 1fr); } }
@@ -71,14 +71,15 @@
             background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(20px);
             border: 2px solid rgba(255, 255, 255, 0.1); border-radius: 16px;
             padding: 15px; text-align: center; transition: all 0.3s; position: relative;
+            min-height: 220px; display: flex; flex-direction: column; justify-content: space-between;
         }
-        .player-card.you { border-color: #f093fb; box-shadow: 0 0 25px rgba(240, 147, 251, 0.4); }
+        .player-card.you { border-color: #4fc3f7; box-shadow: 0 0 25px rgba(79, 195, 247, 0.4); }
         .player-card.dead { opacity: 0.3; filter: grayscale(1); }
         .player-card.bot { border-color: #ff9800; }
         .player-card.targetable { cursor: pointer; border-color: #f5576c; animation: pulse 1.5s infinite; }
         .player-card.targetable:hover { transform: scale(1.05); box-shadow: 0 0 30px rgba(245, 87, 108, 0.6); }
         @keyframes pulse { 0%, 100% { box-shadow: 0 0 15px rgba(245, 87, 108, 0.4); } 50% { box-shadow: 0 0 25px rgba(245, 87, 108, 0.7); } }
-        .island-wrapper { width: 100px; height: 100px; margin: 0 auto 10px; position: relative; }
+        .island-wrapper { width: 100px; height: 100px; margin: 0 auto 10px; position: relative; flex-shrink: 0; }
         .island-img {
             width: 100%; height: 100%; background-size: contain;
             background-repeat: no-repeat; background-position: center; position: relative;
@@ -92,6 +93,7 @@
         .damage-2 .island-damage { clip-path: polygon(0 50%, 100% 50%, 100% 100%, 0 100%); opacity: 1; }
         .damage-3 .island-damage { clip-path: polygon(0 75%, 100% 75%, 100% 100%, 0 100%); opacity: 1; }
         .damage-4 .island-img { filter: grayscale(1) brightness(0.5); }
+        .player-info { flex-grow: 1; display: flex; flex-direction: column; justify-content: center; }
         .player-name { font-weight: 700; font-size: clamp(13px, 2vw, 15px); margin-bottom: 8px; }
         .player-stats {
             display: flex; justify-content: center; gap: 10px; font-size: clamp(11px, 1.8vw, 13px);
@@ -113,13 +115,13 @@
         .result-lose { color: #f5576c; }
         .result-draw { color: #ff9800; }
         .game-panel {
-            background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(20px);
+            background: rgba(255, 255, 0.05); backdrop-filter: blur(20px);
             border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 20px;
             padding: clamp(20px, 4vw, 30px); margin-bottom: 20px;
         }
         .phase-title {
             text-align: center; font-size: clamp(18px, 3.5vw, 24px); font-weight: 900;
-            margin-bottom: 20px; color: #f093fb; text-shadow: 0 2px 8px rgba(240,147,251,0.5);
+            margin-bottom: 20px; color: #4fc3f7; text-shadow: 0 2px 8px rgba(79,195,247,0.5);
         }
         .rps-choices { display: flex; justify-content: center; gap: clamp(15px, 3vw, 25px); flex-wrap: wrap; }
         .rps-btn {
@@ -129,8 +131,8 @@
             display: flex; flex-direction: column; align-items: center; justify-content: center;
             gap: 8px; font-size: clamp(2rem, 5vw, 3rem);
         }
-        .rps-btn:hover { background: rgba(255, 255, 255, 0.15); border-color: #f093fb; transform: scale(1.1); }
-        .rps-btn.selected { background: linear-gradient(135deg, #f093fb, #f5576c); border-color: transparent; }
+        .rps-btn:hover { background: rgba(255, 255, 255, 0.15); border-color: #4fc3f7; transform: scale(1.1); }
+        .rps-btn.selected { background: linear-gradient(135deg, #4fc3f7, #2196f3); border-color: transparent; }
         .rps-btn:disabled { opacity: 0.3; cursor: not-allowed; transform: none; }
         .rps-label { font-size: clamp(11px, 2vw, 14px); font-weight: 700; }
         .shop {
@@ -142,7 +144,7 @@
             border-radius: 16px; padding: clamp(15px, 2.5vw, 20px); text-align: center;
             cursor: pointer; transition: all 0.3s;
         }
-        .shop-item:hover { background: rgba(255, 255, 255, 0.12); border-color: #f093fb; transform: translateY(-5px); }
+        .shop-item:hover { background: rgba(255, 255, 255, 0.12); border-color: #4fc3f7; transform: translateY(-5px); }
         .shop-item:disabled { opacity: 0.3; cursor: not-allowed; transform: none; }
         .item-icon { font-size: clamp(2rem, 4vw, 2.5rem); margin-bottom: 8px; }
         .item-name { font-weight: 700; font-size: clamp(14px, 2.2vw, 16px); margin-bottom: 4px; }
@@ -167,12 +169,12 @@
         }
         .btn {
             padding: clamp(12px, 2vw, 14px) clamp(20px, 3vw, 30px);
-            background: linear-gradient(135deg, #f093fb, #f5576c); border: none; border-radius: 12px;
+            background: linear-gradient(135deg, #4fc3f7, #2196f3); border: none; border-radius: 12px;
             color: #fff; font-size: clamp(14px, 2.2vw, 16px); font-weight: 700; cursor: pointer;
             transition: all 0.3s; font-family: 'Poppins', sans-serif; display: inline-flex;
             align-items: center; justify-content: center; gap: 8px;
         }
-        .btn:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(240, 147, 251, 0.4); }
+        .btn:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(79, 195, 247, 0.4); }
         .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
         .btn-secondary { background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.2); }
         .waiting-msg {
@@ -193,7 +195,7 @@
         .modal h2 { font-size: clamp(24px, 4vw, 32px); margin-bottom: 20px; }
         .winner-name {
             font-size: clamp(28px, 5vw, 40px); font-weight: 900;
-            background: linear-gradient(90deg, #f093fb, #f5576c);
+            background: linear-gradient(90deg, #4fc3f7, #2196f3);
             -webkit-background-clip: text; -webkit-text-fill-color: transparent;
             margin: 20px 0;
         }
@@ -390,12 +392,14 @@
                             <div class="island-img ${damageClass}" style="background-image: url('img/il/${p.island}.png')">
                                 <div class="island-damage" style="background-image: url('img/il/${p.island}.png')"></div>
                             </div>
-                        <div class="player-name">${p.name} ${isYou ? '(You)' : ''} ${isHost ? '👑' : ''} ${isBot ? '🤖' : ''}</div>
-                        <div class="player-stats">
-                            <div class="stat"><i class="fa-solid fa-heart"></i> ${health}</div>
-                            <div class="stat"><i class="fa-solid fa-coins"></i> ${p.coins}</div>
-                            <div class="stat"><i class="fa-solid fa-gun"></i> ${p.canon}</div>
-                            <div class="stat"><i class="fa-solid fa-khanda"></i> ${p.slicer}</div>
+                        <div class="player-info">
+                            <div class="player-name">${p.name} ${isYou ? '(You)' : ''} ${isHost ? '👑' : ''} ${isBot ? '🤖' : ''}</div>
+                            <div class="player-stats">
+                                <div class="stat"><i class="fa-solid fa-heart"></i> ${health}</div>
+                                <div class="stat"><i class="fa-solid fa-coins"></i> ${p.coins}</div>
+                                <div class="stat"><i class="fa-solid fa-gun"></i> ${p.canon}</div>
+                                <div class="stat"><i class="fa-solid fa-khanda"></i> ${p.slicer}</div>
+                            </div>
                         </div>
                     </div>
                 `;
