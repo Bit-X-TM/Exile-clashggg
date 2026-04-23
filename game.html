@@ -63,7 +63,7 @@
             padding: clamp(15px, 3vw, 25px); overflow-y: auto;
         }
         .players-grid {
-            display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
             gap: clamp(15px, 2vw, 20px); margin-bottom: 25px;
         }
         @media (max-width: 768px) { .players-grid { grid-template-columns: repeat(2, 1fr); } }
@@ -71,7 +71,7 @@
             background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(20px);
             border: 2px solid rgba(255, 255, 255, 0.1); border-radius: 16px;
             padding: 15px; text-align: center; transition: all 0.3s; position: relative;
-            min-height: 220px; display: flex; flex-direction: column; justify-content: space-between;
+            min-height: 240px; display: flex; flex-direction: column;
         }
         .player-card.you { border-color: #4fc3f7; box-shadow: 0 0 25px rgba(79, 195, 247, 0.4); }
         .player-card.dead { opacity: 0.3; filter: grayscale(1); }
@@ -93,8 +93,8 @@
         .damage-2 .island-damage { clip-path: polygon(0 50%, 100% 50%, 100% 100%, 0 100%); opacity: 1; }
         .damage-3 .island-damage { clip-path: polygon(0 75%, 100% 75%, 100% 100%, 0 100%); opacity: 1; }
         .damage-4 .island-img { filter: grayscale(1) brightness(0.5); }
-        .player-info { flex-grow: 1; display: flex; flex-direction: column; justify-content: center; }
-        .player-name { font-weight: 700; font-size: clamp(13px, 2vw, 15px); margin-bottom: 8px; }
+        .player-info { flex-grow: 1; display: flex; flex-direction: column; justify-content: center; gap: 8px; }
+        .player-name { font-weight: 700; font-size: clamp(13px, 2vw, 15px); }
         .player-stats {
             display: flex; justify-content: center; gap: 10px; font-size: clamp(11px, 1.8vw, 13px);
             opacity: 0.9; flex-wrap: wrap;
@@ -115,7 +115,7 @@
         .result-lose { color: #f5576c; }
         .result-draw { color: #ff9800; }
         .game-panel {
-            background: rgba(255, 255, 0.05); backdrop-filter: blur(20px);
+            background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(20px);
             border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 20px;
             padding: clamp(20px, 4vw, 30px); margin-bottom: 20px;
         }
