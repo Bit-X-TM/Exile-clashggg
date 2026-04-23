@@ -4,205 +4,520 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Exile Clash - Battle</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <script src="https://js.pusher.com/8.4.0/pusher.min.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        html, body { height: 100%; overflow-x: hidden; }
+        html, body { height: 100%; overflow: hidden; }
         body {
             background: url('img/bg/darkd.png') no-repeat center center fixed;
-            background-size: cover; font-family: 'Poppins', sans-serif; color: #fff; transition: background-image 0.3s ease;
+            background-size: cover;
+            font-family: 'Poppins', sans-serif;
+            transition: background-image 0.3s ease;
+            color: #fff;
         }
-        body.light { background-image: url('img/bg/lightd.png'); color: #000; }
+        body.light {
+            background-image: url('img/bg/lightd.png');
+            color: #000;
+        }
         @media (max-width: 1024px) {
             body { background-image: url('img/bg/darkp.png'); }
             body.light { background-image: url('img/bg/lightp.png'); }
         }
         .glass {
-            background: rgba(0, 0, 0, 0.25); border-radius: 16px;
-            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.3); backdrop-filter: blur(3.7px);
-            -webkit-backdrop-filter: blur(3.7px); border: 1px solid rgba(255, 255, 255, 0.08);
+            background: rgba(0, 0, 0, 0.25);
+            border-radius: 16px;
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(3.7px);
+            -webkit-backdrop-filter: blur(3.7px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
         }
-        body.light .glass { background: rgba(255, 255, 255, 0.17); border: 1px solid rgba(255, 255, 255, 0.09); box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1); }
-        .top-bar { position: fixed; top: 20px; left: 20px; right: 20px; height: 60px; display: flex; justify-content: space-between; align-items: center; padding: 0 24px; z-index: 100; }
-        .logo { font-size: clamp(16px, 3vw, 20px); font-weight: 700; text-shadow: 0 2px 4px rgba(0,0,0,0.3); }
-        body.light .logo { text-shadow: 0 2px 4px rgba(255,255,255,0.3); }
-        .theme-btn { padding: 8px 16px; border-radius: 12px; cursor: pointer; font-size: clamp(12px, 2.5vw, 14px); border: none; font-family: 'Poppins', sans-serif; font-weight: 700; }
-        .page-wrapper { position: fixed; top: 100px; left: 20px; right: 20px; bottom: 20px; padding: clamp(20px, 4vw, 40px); display: flex; justify-content: center; align-items: center; overflow-y: auto; }
-        .battle-container { width: 100%; max-width: 800px; padding: 30px; }
-        .code-display { font-size: clamp(20px, 4vw, 28px); font-weight: 900; letter-spacing: 3px; text-align: center; margin-bottom: 20px; }
-        .players-bar { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin-bottom: 20px; }
-        .player-badge { padding: 10px 15px; border-radius: 12px; font-size: 14px; display: flex; align-items: center; gap: 8px; }
-        .game-title { font-size: clamp(24px, 5vw, 32px); font-weight: 900; text-align: center; margin-bottom: 10px; }
-        .score { font-size: clamp(36px, 8vw, 60px); font-weight: 900; text-align: center; margin: 20px 0; }
-        .choices { display: flex; gap: 20px; justify-content: center; margin: 30px 0; flex-wrap: wrap; }
-        .choice-btn {
-            width: clamp(90px, 20vw, 120px); height: clamp(90px, 20vw, 120px); border-radius: 16px; cursor: pointer;
-            font-size: clamp(40px, 10vw, 50px); border: none; transition: all 0.3s; color: #fff;
+        body.light .glass {
+            background: rgba(255, 255, 255, 0.17);
+            border: 1px solid rgba(255, 255, 255, 0.09);
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
         }
-        body.light .choice-btn { color: #000; }
-        .choice-btn:hover { transform: scale(1.1); }
-        .choice-btn:disabled { opacity: 0.3; cursor: not-allowed; }
-        .choice-btn.selected { box-shadow: 0 0 30px rgba(76, 175, 80, 0.8); }
-        .result { font-size: clamp(24px, 6vw, 36px); font-weight: 900; text-align: center; margin: 20px 0; min-height: 50px; }
-        .vs { font-size: clamp(18px, 4vw, 24px); text-align: center; margin: 20px 0; opacity: 0.7; }
-        .btn { padding: 12px 24px; font-size: 16px; font-weight: 700; cursor: pointer; border: none; border-radius: 12px; font-family: 'Poppins', sans-serif; }
-        .btn-danger { background: rgba(244, 67, 54, 0.4); }
-        .waiting { text-align: center; font-size: 18px; opacity: 0.8; }
+        .top-bar {
+            position: fixed; top: 20px; left: 20px; right: 20px; height: 70px;
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 0 24px; z-index: 100;
+        }
+        .lobby-info { display: flex; flex-direction: column; gap: 4px; }
+        .lobby-name {
+            font-size: clamp(18px, 3vw, 22px); font-weight: 900;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+        body.light .lobby-name { text-shadow: 0 2px 4px rgba(255,255,255,0.3); }
+        .lobby-code { font-size: clamp(12px, 2vw, 14px); opacity: 0.7; }
+        .phase-info { text-align: right; }
+        .phase-name {
+            font-size: clamp(14px, 2.5vw, 18px); font-weight: 700;
+            color: #f093fb; text-shadow: 0 2px 8px rgba(240,147,251,0.5);
+        }
+        .timer { font-size: clamp(24px, 4vw, 32px); font-weight: 900; margin-top: 4px; }
+        .game-area {
+            position: fixed; top: 110px; left: 20px; right: 20px; bottom: 20px;
+            padding: clamp(15px, 3vw, 25px); overflow-y: auto;
+        }
+        .players-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: clamp(15px, 2vw, 20px); margin-bottom: 25px;
+        }
+        @media (max-width: 768px) { .players-grid { grid-template-columns: repeat(2, 1fr); } }
+        .player-card {
+            background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(20px);
+            border: 2px solid rgba(255, 255, 255, 0.1); border-radius: 16px;
+            padding: 15px; text-align: center; transition: all 0.3s; position: relative;
+        }
+        .player-card.you { border-color: #f093fb; box-shadow: 0 0 25px rgba(240, 147, 251, 0.4); }
+        .player-card.dead { opacity: 0.3; filter: grayscale(1); }
+        .player-card.targetable { cursor: pointer; border-color: #f5576c; animation: pulse 1.5s infinite; }
+        .player-card.targetable:hover { transform: scale(1.05); box-shadow: 0 0 30px rgba(245, 87, 108, 0.6); }
+        @keyframes pulse { 0%, 100% { box-shadow: 0 0 15px rgba(245, 87, 108, 0.4); } 50% { box-shadow: 0 0 25px rgba(245, 87, 108, 0.7); } }
+        .island-wrapper { width: 100px; height: 100px; margin: 0 auto 10px; position: relative; }
+        .island-img {
+            width: 100%; height: 100%; background-size: contain;
+            background-repeat: no-repeat; background-position: center; position: relative;
+        }
+        .island-damage {
+            position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+            background-size: contain; background-repeat: no-repeat; background-position: center;
+            pointer-events: none; opacity: 0; transition: opacity 0.3s;
+        }
+        .damage-1 .island-damage { clip-path: polygon(0 25%, 100% 25%, 100% 100%, 0 100%); opacity: 1; }
+        .damage-2 .island-damage { clip-path: polygon(0 50%, 100% 50%, 100% 100%, 0 100%); opacity: 1; }
+        .damage-3 .island-damage { clip-path: polygon(0 75%, 100% 75%, 100% 100%, 0 100%); opacity: 1; }
+        .damage-4 .island-img { filter: grayscale(1) brightness(0.5); }
+        .player-name { font-weight: 700; font-size: clamp(13px, 2vw, 15px); margin-bottom: 8px; }
+        .player-stats {
+            display: flex; justify-content: center; gap: 10px; font-size: clamp(11px, 1.8vw, 13px);
+            opacity: 0.9; flex-wrap: wrap;
+        }
+        .stat { display: flex; align-items: center; gap: 4px; }
+        .shields { position: absolute; top: 8px; right: 8px; display: flex; gap: 3px; }
+        .shield-icon {
+            width: 14px; height: 14px; background: #4fc3f7; border-radius: 50%;
+            border: 2px solid #fff; box-shadow: 0 2px 6px rgba(79,195,247,0.5);
+        }
+        .rps-result {
+            position: absolute; top: -12px; left: 50%; transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.9); padding: 4px 12px; border-radius: 8px;
+            font-size: clamp(10px, 1.8vw, 12px); font-weight: 700; white-space: nowrap;
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+        .result-win { color: #4caf50; }
+        .result-lose { color: #f5576c; }
+        .result-draw { color: #ff9800; }
+        .game-panel {
+            background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 20px;
+            padding: clamp(20px, 4vw, 30px); margin-bottom: 20px;
+        }
+        .phase-title {
+            text-align: center; font-size: clamp(18px, 3.5vw, 24px); font-weight: 900;
+            margin-bottom: 20px; color: #f093fb; text-shadow: 0 2px 8px rgba(240,147,251,0.5);
+        }
+        .rps-choices { display: flex; justify-content: center; gap: clamp(15px, 3vw, 25px); flex-wrap: wrap; }
+        .rps-btn {
+            width: clamp(90px, 15vw, 120px); height: clamp(90px, 15vw, 120px);
+            background: rgba(255, 255, 255, 0.08); border: 3px solid rgba(255, 255, 255, 0.2);
+            border-radius: 20px; cursor: pointer; transition: all 0.3s;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            gap: 8px; font-size: clamp(2rem, 5vw, 3rem);
+        }
+        .rps-btn:hover { background: rgba(255, 255, 255, 0.15); border-color: #f093fb; transform: scale(1.1); }
+        .rps-btn.selected { background: linear-gradient(135deg, #f093fb, #f5576c); border-color: transparent; }
+        .rps-btn:disabled { opacity: 0.3; cursor: not-allowed; transform: none; }
+        .rps-label { font-size: clamp(11px, 2vw, 14px); font-weight: 700; }
+        .shop {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: clamp(15px, 2.5vw, 20px); margin-bottom: 20px;
+        }
+        .shop-item {
+            background: rgba(255, 255, 255, 0.08); border: 2px solid rgba(255, 255, 255, 0.15);
+            border-radius: 16px; padding: clamp(15px, 2.5vw, 20px); text-align: center;
+            cursor: pointer; transition: all 0.3s;
+        }
+        .shop-item:hover { background: rgba(255, 255, 255, 0.12); border-color: #f093fb; transform: translateY(-5px); }
+        .shop-item:disabled { opacity: 0.3; cursor: not-allowed; transform: none; }
+        .item-icon { font-size: clamp(2rem, 4vw, 2.5rem); margin-bottom: 8px; }
+        .item-name { font-weight: 700; font-size: clamp(14px, 2.2vw, 16px); margin-bottom: 4px; }
+        .item-desc { font-size: clamp(11px, 1.8vw, 13px); opacity: 0.7; margin-bottom: 8px; }
+        .item-cost { font-weight: 700; color: #ffd700; font-size: clamp(13px, 2vw, 15px); }
+        .item-owned { font-size: clamp(10px, 1.6vw, 12px); opacity: 0.6; margin-top: 4px; }
+        .inventory {
+            display: flex; justify-content: center; gap: clamp(10px, 2vw, 15px);
+            flex-wrap: wrap; margin-top: 20px;
+        }
+        .inv-item {
+            background: rgba(255, 255, 255, 0.08); border: 2px solid rgba(255, 255, 255, 0.15);
+            border-radius: 12px; padding: clamp(10px, 2vw, 12px) clamp(16px, 3vw, 20px);
+            cursor: pointer; transition: all 0.3s; display: flex; align-items: center; gap: 8px;
+            font-size: clamp(13px, 2vw, 15px);
+        }
+        .inv-item:hover { background: rgba(255, 255, 255, 0.12); border-color: #f5576c; }
+        .inv-item:disabled { opacity: 0.3; cursor: not-allowed; }
+        .inv-count {
+            background: #f5576c; color: #fff; border-radius: 50%; width: 22px; height: 22px;
+            display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700;
+        }
+        .btn {
+            padding: clamp(12px, 2vw, 14px) clamp(20px, 3vw, 30px);
+            background: linear-gradient(135deg, #f093fb, #f5576c); border: none; border-radius: 12px;
+            color: #fff; font-size: clamp(14px, 2.2vw, 16px); font-weight: 700; cursor: pointer;
+            transition: all 0.3s; font-family: 'Poppins', sans-serif; display: inline-flex;
+            align-items: center; justify-content: center; gap: 8px;
+        }
+        .btn:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(240, 147, 251, 0.4); }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+        .btn-secondary { background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.2); }
+        .waiting-msg {
+            text-align: center; opacity: 0.7; font-size: clamp(16px, 2.8vw, 18px);
+            padding: 40px 20px; font-weight: 700;
+        }
+        .modal {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0, 0, 0, 0.85); backdrop-filter: blur(10px);
+            display: none; align-items: center; justify-content: center; z-index: 1000;
+        }
+        .modal.active { display: flex; }
+        .modal-content {
+            background: rgba(255, 255, 255, 0.1); backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 24px;
+            padding: clamp(30px, 5vw, 40px); text-align: center; max-width: 400px;
+        }
+        .modal h2 { font-size: clamp(24px, 4vw, 32px); margin-bottom: 20px; }
+        .winner-name {
+            font-size: clamp(28px, 5vw, 40px); font-weight: 900;
+            background: linear-gradient(90deg, #f093fb, #f5576c);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            margin: 20px 0;
+        }
+        .target-hint {
+            text-align: center; color: #f5576c; font-weight: 700;
+            margin-top: 15px; font-size: clamp(13px, 2.2vw, 15px);
+            animation: blink 1s infinite;
+        }
+        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+        .host-controls { text-align: center; margin-top: 20px; }
     </style>
 </head>
 <body>
     <div class="top-bar glass">
-        <div class="logo"><i class="fa-solid fa-khanda"></i> Exile Clash</div>
-        <button class="theme-btn glass" onclick="toggleTheme()"><i class="fa-solid fa-sun"></i></button>
+        <div class="lobby-info">
+            <div class="lobby-name" id="lobby-name">Exile Clash</div>
+            <div class="lobby-code">Code: <span id="lobby-code">------</span></div>
+        </div>
+        <div class="phase-info">
+            <div class="phase-name" id="phase-name">Waiting...</div>
+            <div class="timer" id="timer">--</div>
+        </div>
     </div>
-    <div class="page-wrapper glass">
-        <div class="battle-container">
-            <div class="code-display">BATTLE: <span id="codeDisplay">------</span></div>
-            <div class="players-bar" id="playersBar"></div>
-            <div class="game-title">CLASH ARENA</div>
-            <div class="score"><span id="myScore">0</span> - <span id="opponentScore">0</span></div>
-            <div class="waiting" id="waitingMsg">Waiting for opponent...</div>
-            <div id="gameContent" style="display:none;">
-                <div style="text-align:center;opacity:0.7;margin-bottom:20px;">Choose Your Weapon</div>
-                <div class="choices">
-                    <button class="choice-btn glass" onclick="makeChoice('rock')">✊</button>
-                    <button class="choice-btn glass" onclick="makeChoice('paper')">✋</button>
-                    <button class="choice-btn glass" onclick="makeChoice('scissors')">✌️</button>
+
+    <div class="game-area">
+        <div class="players-grid" id="players-grid"></div>
+
+        <div class="game-panel glass" id="game-panel">
+            <div class="waiting-msg" id="waiting-msg">Waiting for host to start...</div>
+            
+            <div id="rps-phase" style="display: none;">
+                <div class="phase-title"><i class="fa-solid fa-hand-fist"></i> Choose Your Weapon</div>
+                <div class="rps-choices">
+                    <button class="rps-btn" onclick="chooseRPS('rock')">
+                        <div>🪨</div>
+                        <div class="rps-label">Rock</div>
+                    </button>
+                    <button class="rps-btn" onclick="chooseRPS('paper')">
+                        <div>📄</div>
+                        <div class="rps-label">Paper</div>
+                    </button>
+                    <button class="rps-btn" onclick="chooseRPS('scissors')">
+                        <div>✂️</div>
+                        <div class="rps-label">Scissors</div>
+                    </button>
                 </div>
-                <div class="vs" id="vsDisplay"></div>
-                <div class="result" id="resultDisplay"></div>
             </div>
-            <div style="text-align:center;margin-top:30px;">
-                <button class="btn btn-danger glass" onclick="leaveGame()"><i class="fa-solid fa-door-open"></i> Retreat</button>
+
+            <div id="coin-phase" style="display: none;">
+                <div class="phase-title"><i class="fa-solid fa-coins"></i> Shop & Attack Phase</div>
+                <div class="shop" id="shop"></div>
+                <div class="inventory" id="inventory"></div>
+                <div class="target-hint" id="target-hint" style="display: none;">Select a player to attack!</div>
+            </div>
+
+            <div class="host-controls" id="host-controls" style="display: none;">
+                <button class="btn" id="start-btn" onclick="startGame()"><i class="fa-solid fa-play"></i> Start Game</button>
+                <button class="btn btn-secondary" id="next-round-btn" onclick="nextRound()" style="display: none;"><i class="fa-solid fa-forward"></i> Next Round</button>
             </div>
         </div>
     </div>
+
+    <div class="modal" id="game-over-modal">
+        <div class="modal-content glass">
+            <h2><i class="fa-solid fa-trophy"></i> Game Over</h2>
+            <div class="winner-name" id="winner-name">Player</div>
+            <p style="margin-bottom: 25px; opacity: 0.8;">Winner Winner Chicken Dinner!</p>
+            <button class="btn" onclick="location.href='/'"><i class="fa-solid fa-house"></i> Back to Lobby</button>
+        </div>
+    </div>
+
     <script>
-        const PUSHER_KEY = '52d629612765e85a5546';
-        const PUSHER_CLUSTER = 'ap2';
+        const API = '/api/game';
         const urlParams = new URLSearchParams(window.location.search);
-        const gameCode = urlParams.get('code');
-        const playerName = urlParams.get('name');
-        const userId = Math.random().toString(36).substring(7);
+        const lobbyId = urlParams.get('code');
+        const userId = localStorage.getItem('exile_uid');
+        const playerName = localStorage.getItem('exile_player_name') || 'Guest';
 
-        let pusher, gameChannel, myChoice = null, opponentChoice = null;
-        let myScore = 0, opponentScore = 0;
+        let gameState = null;
+        let pusher = null;
+        let channel = null;
+        let timerInterval = null;
+        let targetMode = null;
 
-        document.getElementById('codeDisplay').textContent = gameCode;
+        if (!lobbyId || !userId) {
+            alert('Invalid game');
+            location.href = '/';
+        }
 
-        function toggleTheme() {
-            document.body.classList.toggle('light');
-            const btn = document.querySelector('.theme-btn');
-            if (document.body.classList.contains('light')) {
-                btn.innerHTML = '<i class="fa-solid fa-moon"></i>';
-                localStorage.setItem('theme', 'light');
-            } else {
-                btn.innerHTML = '<i class="fa-solid fa-sun"></i>';
-                localStorage.setItem('theme', 'dark');
+        document.getElementById('lobby-code').textContent = lobbyId;
+
+        // Theme
+        const savedTheme = localStorage.getItem('theme');
+        if (savedTheme === 'light') document.body.classList.add('light');
+
+        // Initialize Pusher
+        pusher = new Pusher('52d629612765e85a5546', {
+            cluster: 'ap2',
+            authEndpoint: '/api/pusher/auth',
+            auth: { params: { user_info: JSON.stringify({ user_id: userId, username: playerName }) } }
+        });
+
+        channel = pusher.subscribe(`game-${lobbyId}`);
+        channel.bind('state-update', () => loadGameState());
+        channel.bind('game-started', () => loadGameState());
+        channel.bind('rps-resolved', () => loadGameState());
+        channel.bind('game-ended', (data) => showGameOver(data.winner));
+
+        async function apiCall(action, data = {}) {
+            try {
+                const res = await fetch(API, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action, lobby_id: lobbyId, ...data })
+                });
+                return await res.json();
+            } catch (e) {
+                console.error('API Error:', e);
+                return { error: 'Network error' };
             }
         }
 
-        const savedTheme = localStorage.getItem('theme');
-        if (savedTheme === 'light') {
-            document.body.classList.add('light');
-            document.querySelector('.theme-btn').innerHTML = '<i class="fa-solid fa-moon"></i>';
+        async function loadGameState() {
+            const res = await apiCall('get_state');
+            if (res.error) {
+                alert(res.error);
+                location.href = '/';
+                return;
+            }
+            gameState = res.lobby;
+            renderGame();
         }
 
-        function initGame() {
-            pusher = new Pusher(PUSHER_KEY, {
-                cluster: PUSHER_CLUSTER,
-                authEndpoint: '/api/pusher/auth',
-                auth: { params: { user_info: JSON.stringify({ user_id: userId, username: playerName }) } }
-            });
-            gameChannel = pusher.subscribe(`presence-game-${gameCode}`);
-            gameChannel.bind('pusher:subscription_succeeded', (members) => {
-                updatePlayers(members);
-                if (members.count === 2) startRound();
-            });
-            gameChannel.bind('pusher:member_added', (member) => {
-                updatePlayers(gameChannel.members);
-                if (gameChannel.members.count === 2) startRound();
-            });
-            gameChannel.bind('pusher:member_removed', () => {
-                updatePlayers(gameChannel.members);
-                document.getElementById('waitingMsg').style.display = 'block';
-                document.getElementById('gameContent').style.display = 'none';
-            });
-            gameChannel.bind('client-choice', (data) => {
-                if (data.userId!== userId) {
-                    opponentChoice = data.choice;
-                    checkResult();
+        function renderGame() {
+            if (!gameState) return;
+            document.getElementById('lobby-name').textContent = gameState.name;
+            renderPlayers();
+            renderPhase();
+            renderHostControls();
+            updateTimer();
+        }
+
+        function renderPlayers() {
+            const grid = document.getElementById('players-grid');
+            const me = gameState.players.find(p => p.uid === userId);
+
+            grid.innerHTML = gameState.players.map(p => {
+                const isYou = p.uid === userId;
+                const isDead = p.is_dead;
+                const health = Math.max(0, p.health);
+                const damageClass = health < 4 ? `damage-${4 - health}` : '';
+                const shieldsHtml = Array(p.shields).fill(0).map(() => '<div class="shield-icon"></div>').join('');
+                const resultClass = p.rps_result ? 
+                    (p.rps_result.includes('WIN') ? 'result-win' : p.rps_result.includes('LOSE') ? 'result-lose' : 'result-draw') : '';
+
+                return `
+                    <div class="player-card ${isYou ? 'you' : ''} ${isDead ? 'dead' : ''} ${targetMode && !isDead && !isYou ? 'targetable' : ''}" 
+                         onclick="${targetMode && !isDead && !isYou ? `useItemOn('${p.uid}')` : ''}">
+                        ${p.rps_result ? `<div class="rps-result ${resultClass}">${p.rps_result}</div>` : ''}
+                        <div class="shields">${shieldsHtml}</div>
+                        <div class="island-wrapper">
+                            <div class="island-img ${damageClass}" style="background-image: url('img/il/${p.island}.png')">
+                                <div class="island-damage" style="background-image: url('img/il/${p.island}.png')"></div>
+                            </div>
+                        </div>
+                        <div class="player-name">${p.name} ${isYou ? '(You)' : ''}</div>
+                        <div class="player-stats">
+                            <div class="stat"><i class="fa-solid fa-heart"></i> ${health}</div>
+                            <div class="stat"><i class="fa-solid fa-coins"></i> ${p.coins}</div>
+                            <div class="stat"><i class="fa-solid fa-gun"></i> ${p.canon}</div>
+                            <div class="stat"><i class="fa-solid fa-khanda"></i> ${p.slicer}</div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function renderPhase() {
+            const me = gameState.players.find(p => p.uid === userId);
+            const waitingMsg = document.getElementById('waiting-msg');
+            const rpsPhase = document.getElementById('rps-phase');
+            const coinPhase = document.getElementById('coin-phase');
+
+            waitingMsg.style.display = 'none';
+            rpsPhase.style.display = 'none';
+            coinPhase.style.display = 'none';
+
+            document.getElementById('phase-name').textContent = 
+                gameState.phase === 'rps' ? 'RPS Phase' : 
+                gameState.phase === 'coin' ? 'Shop Phase' : 
+                gameState.phase === 'finished' ? 'Game Over' : 'Waiting';
+
+            if (gameState.status === 'waiting') {
+                waitingMsg.style.display = 'block';
+                waitingMsg.textContent = gameState.players.length < 2 ? 'Waiting for players...' : 'Waiting for host to start...';
+            } else if (gameState.phase === 'rps' && me && !me.is_dead) {
+                rpsPhase.style.display = 'block';
+                document.querySelectorAll('.rps-btn').forEach(btn => {
+                    btn.classList.remove('selected');
+                    btn.disabled = me.rps_choice !== null;
+                });
+                if (me.rps_choice) {
+                    document.querySelector(`.rps-btn[onclick="chooseRPS('${me.rps_choice}')"]`).classList.add('selected');
                 }
-            });
-            gameChannel.bind('client-reset', () => resetRound());
+            } else if (gameState.phase === 'coin' && me && !me.is_dead) {
+                coinPhase.style.display = 'block';
+                renderShop(me);
+                renderInventory(me);
+            }
         }
 
-        function updatePlayers(members) {
-            const players = [];
-            members.each(m => players.push({ name: m.info.username, isMe: m.id === members.me.id }));
-            document.getElementById('playersBar').innerHTML = players.map(p => `
-                <div class="player-badge glass"><i class="fa-solid fa-user"></i> ${p.name}${p.isMe ? ' (You)' : ''}</div>
+        function renderShop(me) {
+            const shop = document.getElementById('shop');
+            const items = [
+                { id: 'shields', icon: '🛡️', name: 'Shield', desc: 'Block canon damage', cost: 1, max: 3 },
+                { id: 'canon', icon: '🔫', name: 'Canon', desc: 'Destroy 1 shield', cost: 1, max: 3 },
+                { id: 'slicer', icon: '🗡️', name: 'Slicer', desc: 'Deal 1 damage if no shields', cost: 1, max: 3 }
+            ];
+
+            shop.innerHTML = items.map(item => {
+                const owned = me[item.id] || 0;
+                const canBuy = me.coins >= item.cost && owned < item.max;
+                return `
+                    <button class="shop-item" onclick="buyItem('${item.id}')" ${!canBuy ? 'disabled' : ''}>
+                        <div class="item-icon">${item.icon}</div>
+                        <div class="item-name">${item.name}</div>
+                        <div class="item-desc">${item.desc}</div>
+                        <div class="item-cost"><i class="fa-solid fa-coins"></i> ${item.cost}</div>
+                        <div class="item-owned">Owned: ${owned}/${item.max}</div>
+                    </button>
+                `;
+            }).join('');
+        }
+
+        function renderInventory(me) {
+            const inv = document.getElementById('inventory');
+            const items = [];
+            if (me.canon > 0) items.push({ id: 'canon', icon: '🔫', name: 'Canon', count: me.canon });
+            if (me.slicer > 0) items.push({ id: 'slicer', icon: '🗡️', name: 'Slicer', count: me.slicer });
+
+            if (items.length === 0) {
+                inv.innerHTML = '<div style="opacity:0.5;">No items</div>';
+                return;
+            }
+
+            inv.innerHTML = items.map(item => `
+                <button class="inv-item" onclick="selectTarget('${item.id}')">
+                    <span>${item.icon} ${item.name}</span>
+                    <span class="inv-count">${item.count}</span>
+                </button>
             `).join('');
         }
 
-        function startRound() {
-            document.getElementById('waitingMsg').style.display = 'none';
-            document.getElementById('gameContent').style.display = 'block';
-            resetRound();
-        }
+        function renderHostControls() {
+            const hostControls = document.getElementById('host-controls');
+            const startBtn = document.getElementById('start-btn');
+            const nextBtn = document.getElementById('next-round-btn');
 
-        function makeChoice(choice) {
-            if (myChoice) return;
-            myChoice = choice;
-            document.querySelectorAll('.choice-btn').forEach(btn => {
-                btn.disabled = true;
-                if (btn.textContent.includes(getEmoji(choice))) btn.classList.add('selected');
-            });
-            gameChannel.trigger('client-choice', { userId, choice });
-            checkResult();
-        }
-
-        function checkResult() {
-            if (!myChoice ||!opponentChoice) return;
-            const vs = `${getEmoji(myChoice)} VS ${getEmoji(opponentChoice)}`;
-            document.getElementById('vsDisplay').textContent = vs;
-            let result = '';
-            if (myChoice === opponentChoice) result = "DRAW!";
-            else if (
-                (myChoice === 'rock' && opponentChoice === 'scissors') ||
-                (myChoice === 'paper' && opponentChoice === 'rock') ||
-                (myChoice === 'scissors' && opponentChoice === 'paper')
-            ) {
-                result = "VICTORY!"; myScore++;
+            if (gameState.host_uid === userId) {
+                hostControls.style.display = 'block';
+                startBtn.style.display = gameState.status === 'waiting' ? 'inline-flex' : 'none';
+                nextBtn.style.display = gameState.phase === 'coin' ? 'inline-flex' : 'none';
             } else {
-                result = "DEFEAT!"; opponentScore++;
+                hostControls.style.display = 'none';
             }
-            document.getElementById('resultDisplay').textContent = result;
-            document.getElementById('myScore').textContent = myScore;
-            document.getElementById('opponentScore').textContent = opponentScore;
-            setTimeout(() => gameChannel.trigger('client-reset', {}), 3000);
         }
 
-        function resetRound() {
-            myChoice = null; opponentChoice = null;
-            document.getElementById('vsDisplay').textContent = '';
-            document.getElementById('resultDisplay').textContent = '';
-            document.querySelectorAll('.choice-btn').forEach(btn => {
-                btn.disabled = false; btn.classList.remove('selected');
-            });
+        function updateTimer() {
+            clearInterval(timerInterval);
+            if (!gameState.phase_end_time || gameState.status !== 'playing') {
+                document.getElementById('timer').textContent = '--';
+                return;
+            }
+
+            const update = () => {
+                const now = Math.floor(Date.now() / 1000);
+                const remaining = Math.max(0, gameState.phase_end_time - now);
+                document.getElementById('timer').textContent = remaining + 's';
+                if (remaining === 0) clearInterval(timerInterval);
+            };
+
+            update();
+            timerInterval = setInterval(update, 1000);
         }
 
-        function getEmoji(choice) {
-            return choice === 'rock' ? '✊' : choice === 'paper' ? '✋' : '✌️';
+        async function startGame() {
+            await apiCall('start_game');
         }
 
-        function leaveGame() {
-            if (confirm('Retreat from battle?')) window.location.href = '/';
+        async function chooseRPS(choice) {
+            await apiCall('rps_choice', { uid: userId, choice });
         }
 
-        initGame();
+        async function buyItem(item) {
+            const res = await apiCall('buy_item', { uid: userId, item });
+            if (res.error) alert(res.error);
+        }
+
+        function selectTarget(item) {
+            targetMode = item;
+            document.getElementById('target-hint').style.display = 'block';
+            renderPlayers();
+        }
+
+        async function useItemOn(targetUid) {
+            if (!targetMode) return;
+            const res = await apiCall('use_item', { uid: userId, item: targetMode, target_uid: targetUid });
+            if (res.error) alert(res.error);
+            targetMode = null;
+            document.getElementById('target-hint').style.display = 'none';
+            renderPlayers();
+        }
+
+        async function nextRound() {
+            await apiCall('next_round');
+        }
+
+        function showGameOver(winner) {
+            const modal = document.getElementById('game-over-modal');
+            document.getElementById('winner-name').textContent = winner ? winner.name : 'No Winner';
+            modal.classList.add('active');
+        }
+
+        // Init
+        loadGameState();
     </script>
 </body>
 </html>
