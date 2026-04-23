@@ -2,7 +2,7 @@ import Pusher from 'pusher';
 
 export const config = {
   api: {
-    bodyParser: true, // මේක අනිවාර්යයි Vercel එකේ
+    bodyParser: true,
   },
 };
 
@@ -15,7 +15,6 @@ const pusher = new Pusher({
 });
 
 export default async function handler(req, res) {
-  // CORS headers දාන්න
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -31,7 +30,6 @@ export default async function handler(req, res) {
   try {
     const { socket_id, channel_name } = req.body;
     
-    // user_info parse කරන්න
     let userData = {};
     if (req.body.user_info) {
       userData = JSON.parse(req.body.user_info);
