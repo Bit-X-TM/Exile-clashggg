@@ -128,7 +128,7 @@
             display: flex; flex-direction: column; align-items: center; justify-content: center;
             gap: 8px; font-size: clamp(2rem, 5vw, 3rem);
         }
-        .rps-btn:hover { background: rgba(255, 255, 255, 0.15); border-color: #f093fb; transform: scale(1.1); }
+        .rps-btn:hover { background: rgba(255, 255, 0.15); border-color: #f093fb; transform: scale(1.1); }
         .rps-btn.selected { background: linear-gradient(135deg, #f093fb, #f5576c); border-color: transparent; }
         .rps-btn:disabled { opacity: 0.3; cursor: not-allowed; transform: none; }
         .rps-label { font-size: clamp(11px, 2vw, 14px); font-weight: 700; }
@@ -203,6 +203,16 @@
         }
         @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
         .host-controls { text-align: center; margin-top: 20px; }
+        .draw-alert {
+            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            background: rgba(255, 152, 0, 0.95); color: #fff; padding: 20px 40px;
+            border-radius: 16px; font-size: 24px; font-weight: 900; z-index: 2000;
+            animation: slideIn 0.3s ease;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translate(-50%, -60%); }
+            to { opacity: 1; transform: translate(-50%, -50%); }
+        }
     </style>
 </head>
 <body>
@@ -276,6 +286,7 @@
         let channel = null;
         let timerInterval = null;
         let targetMode = null;
+        let lastPhase = null;
 
         if (!lobbyId || !userId) {
             alert('Invalid game');
@@ -297,6 +308,10 @@
         channel.bind('state-update', () => loadGameState());
         channel.bind('game-started', () => loadGameState());
         channel.bind('rps-resolved', () => loadGameState());
+        channel.bind('rps-draw', (data) => {
+            showDrawAlert(data.message);
+            loadGameState();
+        });
         channel.bind('game-ended', (data) => showGameOver(data.winner));
 
         async function apiCall(action, data = {}) {
@@ -331,6 +346,7 @@
             renderPhase();
             renderHostControls();
             updateTimer();
+            lastPhase = gameState.phase;
         }
 
         function renderPlayers() {
@@ -342,7 +358,7 @@
                 const isDead = p.is_dead;
                 const health = Math.max(0, p.health);
                 const damageClass = health < 4 ? `damage-${4 - health}` : '';
-                const shieldsHtml = Array(p.shields).fill(0).map(() => '<div class="shield-icon"></div>').join('');
+                const shieldsHtml = Array(p.shields || 0).fill(0).map(() => '<div class="shield-icon"></div>').join('');
                 
                 let resultClass = '';
                 if (p.rps_result) {
@@ -359,7 +375,6 @@
                             <div class="island-img ${damageClass}" style="background-image: url('img/il/${p.island}.png')">
                                 <div class="island-damage" style="background-image: url('img/il/${p.island}.png')"></div>
                             </div>
-                        </div>
                         <div class="player-name">${p.name} ${isYou ? '(You)' : ''}</div>
                         <div class="player-stats">
                             <div class="stat"><i class="fa-solid fa-heart"></i> ${health}</div>
@@ -516,6 +531,14 @@
 
         async function nextRound() {
             await apiCall('next_round');
+        }
+
+        function showDrawAlert(message) {
+            const alert = document.createElement('div');
+            alert.className = 'draw-alert';
+            alert.textContent = message;
+            document.body.appendChild(alert);
+            setTimeout(() => alert.remove(), 2000);
         }
 
         function showGameOver(winner) {
