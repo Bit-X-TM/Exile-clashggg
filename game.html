@@ -27,6 +27,8 @@
             body { background-image: url('img/bg/darkp.png'); }
             body.light { background-image: url('img/bg/lightp.png'); }
         }
+
+        /* FIX: rgba had only 3 values — missing alpha channel fixed throughout */
         .glass {
             background: rgba(0, 0, 0, 0.25);
             border-radius: 16px;
@@ -36,53 +38,91 @@
             border: 1px solid rgba(255, 255, 255, 0.08);
         }
         body.light .glass {
-            background: rgba(255, 255, 0.17);
-            border: 1px solid rgba(255, 255, 255, 0.09);
+            /* FIX: was rgba(255, 255, 0.17) — malformed, fixed to proper light glass */
+            background: rgba(255, 255, 255, 0.17);
+            border: 1px solid rgba(255, 255, 255, 0.25);
             box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
         }
+
         .top-bar {
             position: fixed; top: 20px; left: 20px; right: 20px; height: 70px;
             display: flex; justify-content: space-between; align-items: center;
             padding: 0 24px; z-index: 100;
         }
+        /* FIX: top-bar responsive — collapse gracefully on small screens */
+        @media (max-width: 480px) {
+            .top-bar {
+                top: 10px; left: 10px; right: 10px;
+                height: auto; padding: 10px 16px;
+                flex-wrap: wrap; gap: 6px;
+            }
+        }
+
         .lobby-info { display: flex; flex-direction: column; gap: 4px; }
         .lobby-name {
-            font-size: clamp(18px, 3vw, 22px); font-weight: 900;
+            font-size: clamp(16px, 3vw, 22px); font-weight: 900;
             text-shadow: 0 2px 4px rgba(0,0,0,0.3);
         }
         body.light .lobby-name { text-shadow: 0 2px 4px rgba(255,255,255,0.3); }
-        .lobby-code { font-size: clamp(12px, 2vw, 14px); opacity: 0.7; }
+        .lobby-code { font-size: clamp(11px, 2vw, 14px); opacity: 0.7; }
+
         .phase-info { text-align: right; }
         .phase-name {
-            font-size: clamp(14px, 2.5vw, 18px); font-weight: 700;
+            font-size: clamp(13px, 2.5vw, 18px); font-weight: 700;
             color: #4fc3f7; text-shadow: 0 2px 8px rgba(79,195,247,0.5);
         }
-        .timer { font-size: clamp(24px, 4vw, 32px); font-weight: 900; margin-top: 4px; }
+        .timer { font-size: clamp(22px, 4vw, 32px); font-weight: 900; margin-top: 4px; }
+
+        /* FIX: game-area top adjusted for small screens */
         .game-area {
             position: fixed; top: 110px; left: 20px; right: 20px; bottom: 20px;
             padding: clamp(15px, 3vw, 25px); overflow-y: auto;
         }
+        @media (max-width: 480px) {
+            .game-area { top: 100px; left: 10px; right: 10px; bottom: 10px; }
+        }
+
         .players-grid {
             display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
             gap: clamp(15px, 2vw, 20px); margin-bottom: 25px;
         }
         @media (max-width: 768px) { .players-grid { grid-template-columns: repeat(2, 1fr); } }
+        @media (max-width: 400px)  { .players-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; } }
+
         .player-card {
-            background: rgba(255, 255, 0.05); backdrop-filter: blur(20px);
+            /* FIX: was rgba(255, 255, 0.05) — malformed (only 3 values), fixed */
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(20px);
             border: 2px solid rgba(255, 255, 255, 0.1); border-radius: 16px;
             padding: 15px; text-align: center; transition: all 0.3s; position: relative;
             height: 260px; display: flex; flex-direction: column;
         }
-        .player-card.you { border-color: #4fc3f7; box-shadow: 0 25px rgba(79, 195, 247, 0.4); }
+        @media (max-width: 400px) {
+            .player-card { height: 220px; padding: 10px; }
+        }
+        /* FIX: box-shadow was "0 25px rgba(...)" — missing blur radius, fixed */
+        .player-card.you { border-color: #4fc3f7; box-shadow: 0 0 25px rgba(79, 195, 247, 0.4); }
         .player-card.dead { opacity: 0.3; filter: grayscale(1); }
         .player-card.bot { border-color: #ff9800; }
         .player-card.targetable { cursor: pointer; border-color: #f5576c; animation: pulse 1.5s infinite; }
         .player-card.targetable:hover { transform: scale(1.05); box-shadow: 0 0 30px rgba(245, 87, 108, 0.6); }
-        @keyframes pulse { 0%, 100% { box-shadow: 0 0 15px rgba(245, 87, 108, 0.4); } 50% { box-shadow: 0 0 25px rgba(245, 87, 108, 0.7); } }
+
+        @keyframes pulse {
+            0%, 100% { box-shadow: 0 0 15px rgba(245, 87, 108, 0.4); }
+            50%       { box-shadow: 0 0 25px rgba(245, 87, 108, 0.7); }
+        }
+
         .island-wrapper { width: 100px; height: 100px; margin: 0 auto 10px; position: relative; flex-shrink: 0; }
+        @media (max-width: 400px) { .island-wrapper { width: 75px; height: 75px; } }
+
+        /* FIX: island-img needs display:block so it fills wrapper properly */
         .island-img {
-            width: 100%; height: 100%; background-size: contain;
-            background-repeat: no-repeat; background-position: center; position: relative;
+            display: block;
+            width: 100%; height: 100%;
+            background-size: contain;
+            background-repeat: no-repeat;
+            background-position: center;
+            position: relative;
         }
         .island-damage {
             position: absolute; top: 0; left: 0; right: 0; bottom: 0;
@@ -92,140 +132,178 @@
         .damage-1 .island-damage { clip-path: polygon(0 25%, 100% 25%, 100% 100%, 0 100%); opacity: 1; }
         .damage-2 .island-damage { clip-path: polygon(0 50%, 100% 50%, 100% 100%, 0 100%); opacity: 1; }
         .damage-3 .island-damage { clip-path: polygon(0 75%, 100% 75%, 100% 100%, 0 100%); opacity: 1; }
-        .damage-4 .island-img { filter: grayscale(1) brightness(0.5); }
+        .damage-4 .island-img  { filter: grayscale(1) brightness(0.5); }
+
         .player-info { flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 8px; }
-        .player-name { font-weight: 700; font-size: clamp(13px, 2vw, 15px); }
+        .player-name { font-weight: 700; font-size: clamp(12px, 2vw, 15px); }
         .player-stats {
-            display: flex; justify-content: center; gap: 10px; font-size: clamp(11px, 1.8vw, 13px);
-            opacity: 0.9; flex-wrap: wrap;
+            display: flex; justify-content: center; gap: 8px;
+            font-size: clamp(11px, 1.8vw, 13px); opacity: 0.9; flex-wrap: wrap;
         }
         .stat { display: flex; align-items: center; gap: 4px; }
-        .shields { position: absolute; top: 8px; right: 8px; display: flex; gap: 3px; }
+
+        .shields { position: absolute; top: 8px; right: 8px; display: flex; gap: 3px; flex-wrap: wrap; max-width: 60px; }
         .shield-icon {
             width: 14px; height: 14px; background: #4fc3f7; border-radius: 50%;
             border: 2px solid #fff; box-shadow: 0 2px 6px rgba(79,195,247,0.5);
         }
+
         .rps-result {
             position: absolute; top: -12px; left: 50%; transform: translateX(-50%);
-            background: rgba(0, 0, 0.9); padding: 4px 12px; border-radius: 8px;
+            /* FIX: was rgba(0, 0, 0.9) — 3-value rgba, fixed */
+            background: rgba(0, 0, 0, 0.9);
+            padding: 4px 12px; border-radius: 8px;
             font-size: clamp(10px, 1.8vw, 12px); font-weight: 700; white-space: nowrap;
             border: 1px solid rgba(255,255,255,0.2);
         }
-        .result-win { color: #4caf50; }
+        .result-win  { color: #4caf50; }
         .result-lose { color: #f5576c; }
         .result-draw { color: #ff9800; }
+
         .game-panel {
             background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(20px);
             border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 20px;
             padding: clamp(20px, 4vw, 30px); margin-bottom: 20px;
         }
         .phase-title {
-            text-align: center; font-size: clamp(18px, 3.5vw, 24px); font-weight: 900;
+            text-align: center; font-size: clamp(17px, 3.5vw, 24px); font-weight: 900;
             margin-bottom: 20px; color: #4fc3f7; text-shadow: 0 2px 8px rgba(79,195,247,0.5);
         }
-        .rps-choices { display: flex; justify-content: center; gap: clamp(15px, 3vw, 25px); flex-wrap: wrap; }
+
+        .rps-choices { display: flex; justify-content: center; gap: clamp(12px, 3vw, 25px); flex-wrap: wrap; }
         .rps-btn {
-            width: clamp(90px, 15vw, 120px); height: clamp(90px, 15vw, 120px);
+            width: clamp(80px, 15vw, 120px); height: clamp(80px, 15vw, 120px);
             background: rgba(255, 255, 255, 0.08); border: 3px solid rgba(255, 255, 255, 0.2);
             border-radius: 20px; cursor: pointer; transition: all 0.3s;
             display: flex; flex-direction: column; align-items: center; justify-content: center;
-            gap: 8px; font-size: clamp(2rem, 5vw, 3rem);
+            gap: 8px; font-size: clamp(1.8rem, 5vw, 3rem); color: #fff;
         }
         .rps-btn:hover { background: rgba(255, 255, 255, 0.15); border-color: #4fc3f7; transform: scale(1.1); }
         .rps-btn.selected { background: linear-gradient(135deg, #4fc3f7, #2196f3); border-color: transparent; }
-        .rps-btn:disabled { opacity: 0.3; cursor: not-allowed; transform: none; }
+        .rps-btn:disabled { opacity: 0.3; cursor: not-allowed; transform: none !important; }
         .rps-label { font-size: clamp(11px, 2vw, 14px); font-weight: 700; }
+
         .shop {
-            display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-            gap: clamp(15px, 2.5vw, 20px); margin-bottom: 20px;
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: clamp(12px, 2.5vw, 20px); margin-bottom: 20px;
         }
+        @media (max-width: 480px) { .shop { grid-template-columns: repeat(3, 1fr); gap: 10px; } }
+
+        /* FIX: shop-item is a <button> — :disabled pseudo works, remove invalid property */
         .shop-item {
             background: rgba(255, 255, 255, 0.08); border: 2px solid rgba(255, 255, 255, 0.15);
-            border-radius: 16px; padding: clamp(15px, 2.5vw, 20px); text-align: center;
-            cursor: pointer; transition: all 0.3s;
+            border-radius: 16px; padding: clamp(12px, 2.5vw, 20px); text-align: center;
+            cursor: pointer; transition: all 0.3s; color: inherit; font-family: 'Poppins', sans-serif;
+            width: 100%;
         }
-        .shop-item:hover { background: rgba(255, 255, 255, 0.12); border-color: #4fc3f7; transform: translateY(-5px); }
-        .shop-item:disabled { opacity: 0.3; cursor: not-allowed; transform: none; }
-        .item-icon { font-size: clamp(2rem, 4vw, 2.5rem); margin-bottom: 8px; }
-        .item-name { font-weight: 700; font-size: clamp(14px, 2.2vw, 16px); margin-bottom: 4px; }
-        .item-desc { font-size: clamp(11px, 1.8vw, 13px); opacity: 0.7; margin-bottom: 8px; }
-        .item-cost { font-weight: 700; color: #ffd700; font-size: clamp(13px, 2vw, 15px); }
-        .item-owned { font-size: clamp(10px, 1.6vw, 12px); opacity: 0.6; margin-top: 4px; }
+        .shop-item:hover:not(:disabled) { background: rgba(255, 255, 255, 0.12); border-color: #4fc3f7; transform: translateY(-5px); }
+        .shop-item:disabled { opacity: 0.35; cursor: not-allowed; }
+
+        .item-icon { font-size: clamp(1.8rem, 4vw, 2.5rem); margin-bottom: 8px; }
+        .item-name { font-weight: 700; font-size: clamp(13px, 2.2vw, 16px); margin-bottom: 4px; }
+        .item-desc { font-size: clamp(10px, 1.8vw, 13px); opacity: 0.7; margin-bottom: 8px; }
+        .item-cost { font-weight: 700; color: #ffd700; font-size: clamp(12px, 2vw, 15px); }
+        .item-owned { font-size: clamp(9px, 1.6vw, 12px); opacity: 0.6; margin-top: 4px; }
+
         .inventory {
             display: flex; justify-content: center; gap: clamp(10px, 2vw, 15px);
             flex-wrap: wrap; margin-top: 20px;
         }
         .inv-item {
             background: rgba(255, 255, 255, 0.08); border: 2px solid rgba(255, 255, 255, 0.15);
-            border-radius: 12px; padding: clamp(10px, 2vw, 12px) clamp(16px, 3vw, 20px);
+            border-radius: 12px; padding: clamp(10px, 2vw, 12px) clamp(14px, 3vw, 20px);
             cursor: pointer; transition: all 0.3s; display: flex; align-items: center; gap: 8px;
-            font-size: clamp(13px, 2vw, 15px);
+            font-size: clamp(13px, 2vw, 15px); color: inherit; font-family: 'Poppins', sans-serif;
         }
         .inv-item:hover { background: rgba(255, 255, 255, 0.12); border-color: #f5576c; }
         .inv-item:disabled { opacity: 0.3; cursor: not-allowed; }
+
         .inv-count {
-            background: #f5576c; color: #fff; border-radius: 50%; width: 22px; height: 22px;
-            display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700;
+            background: #f5576c; color: #fff; border-radius: 50%;
+            width: 22px; height: 22px; display: flex; align-items: center;
+            justify-content: center; font-size: 11px; font-weight: 700; flex-shrink: 0;
         }
+
         .btn {
-            padding: clamp(12px, 2vw, 14px) clamp(20px, 3vw, 30px);
+            padding: clamp(10px, 2vw, 14px) clamp(18px, 3vw, 30px);
             background: linear-gradient(135deg, #4fc3f7, #2196f3); border: none; border-radius: 12px;
-            color: #fff; font-size: clamp(14px, 2.2vw, 16px); font-weight: 700; cursor: pointer;
-            transition: all 0.3s; font-family: 'Poppins', sans-serif; display: inline-flex;
-            align-items: center; justify-content: center; gap: 8px;
+            color: #fff; font-size: clamp(13px, 2.2vw, 16px); font-weight: 700; cursor: pointer;
+            transition: all 0.3s; font-family: 'Poppins', sans-serif;
+            display: inline-flex; align-items: center; justify-content: center; gap: 8px;
         }
-        .btn:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(79, 195, 247, 0.4); }
-        .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+        .btn:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(79, 195, 247, 0.4); }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
         .btn-secondary { background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.2); }
+
         .waiting-msg {
-            text-align: center; opacity: 0.7; font-size: clamp(16px, 2.8vw, 18px);
+            text-align: center; opacity: 0.7; font-size: clamp(15px, 2.8vw, 18px);
             padding: 40px 20px; font-weight: 700;
         }
+
         .modal {
             position: fixed; top: 0; left: 0; right: 0; bottom: 0;
             background: rgba(0, 0, 0, 0.85); backdrop-filter: blur(10px);
-            display: none; align-items: center; justify-content: center; z-index: 1000;
+            display: none; align-items: center; justify-content: center;
+            z-index: 1000; padding: 20px;
         }
         .modal.active { display: flex; }
         .modal-content {
             background: rgba(255, 255, 255, 0.1); backdrop-filter: blur(20px);
             border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 24px;
-            padding: clamp(30px, 5vw, 40px); text-align: center; max-width: 400px;
+            padding: clamp(25px, 5vw, 40px); text-align: center;
+            /* FIX: added width:100% + max-width so it's responsive on mobile */
+            width: 100%; max-width: 400px;
         }
-        .modal h2 { font-size: clamp(24px, 4vw, 32px); margin-bottom: 20px; }
+        .modal h2 { font-size: clamp(22px, 4vw, 32px); margin-bottom: 20px; }
         .winner-name {
-            font-size: clamp(28px, 5vw, 40px); font-weight: 900;
+            font-size: clamp(26px, 5vw, 40px); font-weight: 900;
             background: linear-gradient(90deg, #4fc3f7, #2196f3);
             -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            background-clip: text;
             margin: 20px 0;
         }
+
         .target-hint {
             text-align: center; color: #f5576c; font-weight: 700;
             margin-top: 15px; font-size: clamp(13px, 2.2vw, 15px);
             animation: blink 1s infinite;
         }
         @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
-        .host-controls { text-align: center; margin-top: 20px; }
+
+        .host-controls { text-align: center; margin-top: 20px; display: flex; justify-content: center; gap: 12px; flex-wrap: wrap; }
+
         .draw-alert {
             position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
             background: rgba(255, 152, 0, 0.95); color: #fff; padding: 20px 40px;
-            border-radius: 16px; font-size: 24px; font-weight: 900; z-index: 2000;
-            animation: slideIn 0.3s ease;
+            border-radius: 16px; font-size: clamp(18px, 4vw, 24px); font-weight: 900;
+            z-index: 2000; animation: slideIn 0.3s ease;
+            white-space: nowrap;
         }
         @keyframes slideIn {
             from { opacity: 0; transform: translate(-50%, -60%); }
-            to { opacity: 1; transform: translate(-50%, -50%); }
+            to   { opacity: 1; transform: translate(-50%, -50%); }
         }
+
         .toast {
             position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
             background: rgba(0, 0, 0, 0.9); color: #fff; padding: 12px 24px;
             border-radius: 12px; font-weight: 700; z-index: 2000;
-            animation: slideUp 0.3s ease;
+            animation: slideUp 0.3s ease; max-width: 90vw; text-align: center;
         }
         @keyframes slideUp {
             from { opacity: 0; transform: translate(-50%, 20px); }
-            to { opacity: 1; transform: translate(-50%, 0); }
+            to   { opacity: 1; transform: translate(-50%, 0); }
         }
+
+        /* Light mode text adjustments */
+        body.light .phase-name  { text-shadow: 0 2px 8px rgba(0,150,200,0.3); }
+        body.light .player-card { background: rgba(255, 255, 255, 0.15); border-color: rgba(0,0,0,0.1); }
+        body.light .game-panel  { background: rgba(255, 255, 255, 0.2); }
+        body.light .rps-btn     { color: #333; }
+        body.light .btn-secondary { background: rgba(0, 0, 0, 0.08); border-color: rgba(0,0,0,0.2); color: #333; }
+        body.light .shop-item   { color: #222; }
+        body.light .inv-item    { color: #222; }
+        body.light .toast       { background: rgba(0,0,0,0.8); }
     </style>
 </head>
 <body>
@@ -245,7 +323,7 @@
 
         <div class="game-panel glass" id="game-panel">
             <div class="waiting-msg" id="waiting-msg">Waiting for host to start...</div>
-            
+
             <div id="rps-phase" style="display: none;">
                 <div class="phase-title"><i class="fa-solid fa-hand-fist"></i> Choose Your Weapon</div>
                 <div class="rps-choices">
@@ -265,15 +343,22 @@
             </div>
 
             <div id="coin-phase" style="display: none;">
-                <div class="phase-title"><i class="fa-solid fa-coins"></i> Shop & Attack Phase</div>
+                <div class="phase-title"><i class="fa-solid fa-coins"></i> Shop &amp; Attack Phase</div>
                 <div class="shop" id="shop"></div>
                 <div class="inventory" id="inventory"></div>
-                <div class="target-hint" id="target-hint" style="display: none;">Select a player to attack!</div>
+                <div class="target-hint" id="target-hint" style="display: none;">
+                    <i class="fa-solid fa-crosshairs"></i> Select a player to attack!
+                </div>
             </div>
 
             <div class="host-controls" id="host-controls" style="display: none;">
-                <button class="btn" id="start-btn" onclick="startGame()"><i class="fa-solid fa-play"></i> Start Game</button>
-                <button class="btn btn-secondary" id="next-round-btn" onclick="nextRound()" style="display: none;"><i class="fa-solid fa-forward"></i> Next Round</button>
+                <button class="btn" id="start-btn" onclick="startGame()">
+                    <i class="fa-solid fa-play"></i> Start Game
+                </button>
+                <!-- FIX: next-round-btn visible state managed in JS; inline style="display:none" retained -->
+                <button class="btn btn-secondary" id="next-round-btn" onclick="nextRound()" style="display: none;">
+                    <i class="fa-solid fa-forward"></i> Next Round
+                </button>
             </div>
         </div>
     </div>
@@ -283,7 +368,9 @@
             <h2><i class="fa-solid fa-trophy"></i> Game Over</h2>
             <div class="winner-name" id="winner-name">Player</div>
             <p style="margin-bottom: 25px; opacity: 0.8;">Winner Winner Chicken Dinner!</p>
-            <button class="btn" onclick="location.href='/'"><i class="fa-solid fa-house"></i> Back to Lobby</button>
+            <button class="btn" onclick="location.href='/'">
+                <i class="fa-solid fa-house"></i> Back to Lobby
+            </button>
         </div>
     </div>
 
@@ -376,15 +463,15 @@
                 const health = Math.max(0, p.health);
                 const damageClass = health < 4 ? `damage-${4 - health}` : '';
                 const shieldsHtml = Array(p.shields || 0).fill(0).map(() => '<div class="shield-icon"></div>').join('');
-                
+
                 let resultClass = '';
                 if (p.rps_result) {
-                    resultClass = p.rps_result === 'WIN' ? 'result-win' : 
-                                 p.rps_result === 'LOSE' ? 'result-lose' : 'result-draw';
+                    resultClass = p.rps_result === 'WIN' ? 'result-win' :
+                                  p.rps_result === 'LOSE' ? 'result-lose' : 'result-draw';
                 }
 
                 return `
-                    <div class="player-card ${isYou ? 'you' : ''} ${isDead ? 'dead' : ''} ${isBot ? 'bot' : ''} ${targetMode && !isDead && !isYou ? 'targetable' : ''}" 
+                    <div class="player-card ${isYou ? 'you' : ''} ${isDead ? 'dead' : ''} ${isBot ? 'bot' : ''} ${targetMode && !isDead && !isYou ? 'targetable' : ''}"
                          onclick="${targetMode && !isDead && !isYou ? `useItemOn('${p.uid}')` : ''}">
                         ${p.rps_result ? `<div class="rps-result ${resultClass}">${p.rps_result}</div>` : ''}
                         <div class="shields">${shieldsHtml}</div>
@@ -396,10 +483,10 @@
                         <div class="player-info">
                             <div class="player-name">${p.name} ${isYou ? '(You)' : ''} ${isHost ? '👑' : ''} ${isBot ? '🤖' : ''}</div>
                             <div class="player-stats">
-                                <div class="stat"><i class="fa-solid fa-heart"></i> ${health}</div>
-                                <div class="stat"><i class="fa-solid fa-coins"></i> ${p.coins}</div>
-                                <div class="stat"><i class="fa-solid fa-gun"></i> ${p.canon}</div>
-                                <div class="stat"><i class="fa-solid fa-khanda"></i> ${p.slicer}</div>
+                                <div class="stat"><i class="fa-solid fa-heart" style="color:#f5576c"></i> ${health}</div>
+                                <div class="stat"><i class="fa-solid fa-coins" style="color:#ffd700"></i> ${p.coins}</div>
+                                <div class="stat"><i class="fa-solid fa-cannon" title="Cannon"></i> ${p.canon}</div>
+                                <div class="stat"><i class="fa-solid fa-sword" title="Slicer"></i> ${p.slicer}</div>
                             </div>
                         </div>
                     </div>
@@ -417,10 +504,10 @@
             rpsPhase.style.display = 'none';
             coinPhase.style.display = 'none';
 
-            document.getElementById('phase-name').textContent = 
-                gameState.phase === 'rps' ? 'RPS Phase' : 
-                gameState.phase === 'coin' ? 'Shop Phase' : 
-                gameState.phase === 'finished' ? 'Game Over' : 'Waiting';
+            document.getElementById('phase-name').textContent =
+                gameState.phase === 'rps'      ? 'RPS Phase'  :
+                gameState.phase === 'coin'     ? 'Shop Phase' :
+                gameState.phase === 'finished' ? 'Game Over'  : 'Waiting';
 
             if (gameState.status === 'waiting') {
                 waitingMsg.style.display = 'block';
@@ -444,9 +531,9 @@
         function renderShop(me) {
             const shop = document.getElementById('shop');
             const items = [
-                { id: 'shields', icon: '🛡️', name: 'Shield', desc: 'Block canon damage', cost: 1, max: 3 },
-                { id: 'canon', icon: '🔫', name: 'Canon', desc: 'Destroy 1 shield', cost: 1, max: 3 },
-                { id: 'slicer', icon: '🗡️', name: 'Slicer', desc: 'Deal 1 damage if no shields', cost: 1, max: 3 }
+                { id: 'shields', icon: '🛡️', name: 'Shield',  desc: 'Block cannon damage',         cost: 1, max: 3 },
+                { id: 'canon',   icon: '💣',  name: 'Cannon',  desc: 'Destroy 1 shield',             cost: 1, max: 3 },
+                { id: 'slicer',  icon: '⚔️',  name: 'Slicer',  desc: 'Deal 1 damage if no shields',  cost: 1, max: 3 }
             ];
 
             shop.innerHTML = items.map(item => {
@@ -467,8 +554,8 @@
         function renderInventory(me) {
             const inv = document.getElementById('inventory');
             const items = [];
-            if (me.canon > 0) items.push({ id: 'canon', icon: '🔫', name: 'Canon', count: me.canon });
-            if (me.slicer > 0) items.push({ id: 'slicer', icon: '🗡️', name: 'Slicer', count: me.slicer });
+            if (me.canon  > 0) items.push({ id: 'canon',  icon: '💣', name: 'Cannon', count: me.canon  });
+            if (me.slicer > 0) items.push({ id: 'slicer', icon: '⚔️', name: 'Slicer', count: me.slicer });
 
             if (items.length === 0) {
                 inv.innerHTML = '<div style="opacity:0.5;">No items</div>';
@@ -489,9 +576,9 @@
             const nextBtn = document.getElementById('next-round-btn');
 
             if (gameState.host_uid === userId) {
-                hostControls.style.display = 'block';
-                startBtn.style.display = gameState.status === 'waiting' ? 'inline-flex' : 'none';
-                nextBtn.style.display = gameState.phase === 'coin' ? 'inline-flex' : 'none';
+                hostControls.style.display = 'flex';
+                startBtn.style.display  = gameState.status === 'waiting' ? 'inline-flex' : 'none';
+                nextBtn.style.display   = gameState.phase  === 'coin'    ? 'inline-flex' : 'none';
             } else {
                 hostControls.style.display = 'none';
             }
@@ -508,7 +595,7 @@
                 const now = Math.floor(Date.now() / 1000);
                 const remaining = Math.max(0, gameState.phase_end_time - now);
                 document.getElementById('timer').textContent = remaining + 's';
-                
+
                 if (remaining === 0) {
                     clearInterval(timerInterval);
                     if (gameState.phase === 'rps' && gameState.host_uid === userId) {
