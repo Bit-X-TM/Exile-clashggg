@@ -3,332 +3,340 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Exile Clash</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@700;900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    <script src="https://js.pusher.com/8.4.0/pusher.min.js"></script>
+    <title>Exile Clash - Lobby</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        html, body { height: 100%; overflow: hidden; }
         body {
-            background: url('img/bg/darkd.png') no-repeat center center fixed;
-            background-size: cover;
-            font-family: 'Poppins', sans-serif;
-            transition: background-image 0.3s ease;
-            color: #fff;
+            font-family: 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            color: #e2e8f0;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
         }
-        body.light {
-            background-image: url('img/bg/lightd.png');
-            color: #000;
+        .container {
+            width: 100%;
+            max-width: 500px;
         }
-        @media (max-width: 1024px) {
-            body { background-image: url('img/bg/darkp.png'); }
-            body.light { background-image: url('img/bg/lightp.png'); }
+        .card {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(148, 163, 184, 0.2);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
         }
-        #loading {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: #000; display: flex; justify-content: center; align-items: center;
-            z-index: 9999; transition: opacity 0.5s ease;
+        h1 {
+            text-align: center;
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            background: linear-gradient(135deg, #60a5fa, #a78bfa);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
         }
-        #loading.hidden { opacity: 0; pointer-events: none; }
-        .loading-bar-container {
-            width: 200px; height: 4px; background: rgba(255,255,255,0.2);
-            border-radius: 2px; overflow: hidden;
+        .subtitle {
+            text-align: center;
+            color: #94a3b8;
+            margin-bottom: 30px;
+            font-size: 0.9rem;
         }
-        .loading-bar {
-            width: 0%; height: 100%; background: #fff;
-            animation: load 2s ease-in-out forwards;
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 25px;
         }
-        @keyframes load { 0% { width: 0%; } 100% { width: 100%; } }
-        .glass {
-            background: rgba(0, 0, 0, 0.25);
-            border-radius: 16px;
-            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.3);
-            backdrop-filter: blur(3.7px);
-            -webkit-backdrop-filter: blur(3.7px);
-            border: 1px solid rgba(255, 255, 255, 0.08);
+        .tab {
+            flex: 1;
+            padding: 12px;
+            background: rgba(51, 65, 85, 0.5);
+            border: 1px solid rgba(148, 163, 184, 0.2);
+            border-radius: 10px;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.3s;
         }
-        body.light .glass {
-            background: rgba(255, 255, 255, 0.17);
-            border: 1px solid rgba(255, 255, 255, 0.09);
-            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+        .tab.active {
+            background: rgba(96, 165, 250, 0.2);
+            border-color: #60a5fa;
         }
-        .top-bar {
-            position: fixed; top: 20px; left: 20px; right: 20px; height: 60px;
-            display: flex; justify-content: space-between; align-items: center;
-            padding: 0 24px; z-index: 100;
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        input {
+            width: 100%;
+            padding: 14px;
+            margin-bottom: 15px;
+            background: rgba(15, 23, 42, 0.8);
+            border: 1px solid rgba(148, 163, 184, 0.2);
+            border-radius: 10px;
+            color: #e2e8f0;
+            font-size: 1rem;
+            transition: all 0.3s;
         }
-        .logo {
-            color: #fff; font-size: clamp(16px, 3vw, 20px); font-weight: 700;
-            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        input:focus {
+            outline: none;
+            border-color: #60a5fa;
+            box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.1);
         }
-        body.light .logo { color: #000; text-shadow: 0 2px 4px rgba(255,255,255,0.3); }
-        .theme-btn {
-            color: #fff; padding: 8px 16px; border-radius: 12px; cursor: pointer;
-            font-size: clamp(12px, 2.5vw, 14px); transition: all 0.3s ease;
-            border: none; font-family: 'Poppins', sans-serif; font-weight: 700;
+        .checkbox-wrap {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 20px;
         }
-        body.light .theme-btn { color: #000; }
-        .theme-btn:hover { transform: translateY(-1px); }
-        .page-wrapper {
-            position: fixed; top: 100px; left: 20px; right: 20px; bottom: 20px;
-            padding: clamp(20px, 4vw, 40px); display: flex; justify-content: center; align-items: center;
+        .checkbox-wrap input[type="checkbox"] {
+            width: auto;
+            margin: 0;
         }
-        .content {
-            display: flex; align-items: center; gap: clamp(30px, 8vw, 80px);
-            width: 100%; max-width: 1200px; justify-content: center;
+        button {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #60a5fa, #a78bfa);
+            border: none;
+            border-radius: 10px;
+            color: white;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
         }
-        @media (max-width: 1024px) {
-            .content { flex-direction: column; gap: clamp(30px, 6vw, 50px); }
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(96, 165, 250, 0.4);
         }
-        .title-wrapper { display: flex; flex-direction: column; align-items: flex-start; line-height: 0.85; }
-        .game-title {
-            font-size: clamp(42px, 9vw, 90px); font-weight: 900; color: #fff;
-            letter-spacing: clamp(2px, 0.8vw, 8px); text-shadow: 0 6px 20px rgba(0,0,0,0.6);
-            font-stretch: ultra-condensed;
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
         }
-        body.light .game-title { color: #000; text-shadow: 0 6px 20px rgba(255,255,255,0.4); }
-        .game-title.exile { letter-spacing: clamp(3px, 1vw, 10px); }
-        .game-title.clash { letter-spacing: clamp(2px, 0.9vw, 8px); }
-        @media (max-width: 1024px) {
-            .title-wrapper { align-items: center; }
-            .game-title { text-align: center; }
+        .lobby-list {
+            margin-top: 20px;
         }
-        .input-section { display: flex; flex-direction: column; align-items: center; gap: 20px; padding: clamp(20px, 3vw, 30px); }
-        .name-input {
-            background: rgba(255, 255, 255, 0.15); border: 1px solid rgba(255, 255, 255, 0.3);
-            backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px); border-radius: 12px;
-            padding: clamp(14px, 2vw, 16px) clamp(20px, 3vw, 24px); font-size: clamp(16px, 2.5vw, 18px);
-            color: #fff; width: clamp(280px, 50vw, 320px); text-align: center; outline: none;
-            transition: all 0.3s ease; font-family: 'Poppins', sans-serif;
-        }
-        .name-input::placeholder { color: rgba(255, 255, 255, 0.6); }
-        .name-input:focus {
-            background: rgba(255, 255, 255, 0.25); border: 1px solid rgba(255, 255, 255, 0.5);
-            box-shadow: 0 0 20px rgba(255,255,255,0.2);
-        }
-        body.light .name-input {
-            background: rgba(0, 0, 0, 0.1); border: 1px solid rgba(0, 0, 0, 0.2); color: #000;
-        }
-        body.light .name-input::placeholder { color: rgba(0, 0, 0, 0.5); }
-        body.light .name-input:focus {
-            background: rgba(0, 0, 0, 0.15); border: 1px solid rgba(0, 0, 0, 0.3);
-            box-shadow: 0 0 20px rgba(0,0,0,0.1);
-        }
-        .btn-group { display: flex; gap: 16px; width: clamp(280px, 50vw, 320px); }
-        @media (max-width: 480px) { .btn-group { flex-direction: column; width: 100%; } }
-        .btn {
-            flex: 1; padding: clamp(12px, 2vw, 14px) clamp(16px, 3vw, 20px);
-            font-size: clamp(14px, 2.5vw, 16px); font-weight: 700; color: #fff; cursor: pointer;
-            transition: all 0.3s ease; text-shadow: 0 2px 4px rgba(0,0,0,0.3); border: none;
-            font-family: 'Poppins', sans-serif; display: flex; align-items: center; justify-content: center; gap: 8px;
-        }
-        body.light .btn { color: #000; text-shadow: 0 2px 4px rgba(255,255,255,0.3); }
-        .btn:hover { transform: translateY(-2px); }
-        .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
-        .btn-primary { background: rgba(76, 175, 80, 0.3); }
-        .btn-primary:hover { background: rgba(76, 175, 80, 0.5); }
-        .hidden { display: none !important; }
-        .error { color: #ff5555; font-size: 14px; text-align: center; margin-top: -10px; }
-        .stats { text-align: center; opacity: 0.8; font-size: 14px; margin-top: 10px; }
-        .code-input { text-transform: uppercase; }
-        .lobby-list { max-height: 200px; overflow-y: auto; width: 100%; margin-top: 15px; }
         .lobby-item {
-            background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15);
-            border-radius: 10px; padding: 10px 15px; margin-bottom: 8px; cursor: pointer;
-            transition: all 0.3s; display: flex; justify-content: space-between; align-items: center;
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid rgba(148, 163, 184, 0.2);
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            transition: all 0.3s;
         }
-        .lobby-item:hover { background: rgba(255,255,255,0.15); transform: translateX(5px); }
+        .lobby-item:hover {
+            background: rgba(15, 23, 42, 0.9);
+            border-color: #60a5fa;
+        }
+        .lobby-info h3 {
+            font-size: 1rem;
+            margin-bottom: 5px;
+        }
+        .lobby-info p {
+            font-size: 0.85rem;
+            color: #94a3b8;
+        }
+        .error {
+            background: rgba(239, 68, 68, 0.2);
+            border: 1px solid rgba(239, 68, 68, 0.5);
+            color: #fca5a5;
+            padding: 12px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            display: none;
+        }
+        .error.show { display: block; }
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #94a3b8;
+        }
     </style>
 </head>
 <body>
-    <div id="loading">
-        <div class="loading-bar-container">
-            <div class="loading-bar"></div>
-        </div>
-    </div>
+    <div class="container">
+        <div class="card">
+            <h1>⚔️ Exile Clash</h1>
+            <p class="subtitle">Battle for survival on the islands</p>
 
-    <div class="top-bar glass">
-        <div class="logo"><i class="fa-solid fa-khanda"></i> Exile Clash</div>
-        <button class="theme-btn glass" onclick="toggleTheme()"><i class="fa-solid fa-sun"></i> Theme</button>
-    </div>
-
-    <div class="page-wrapper glass">
-        <div class="content">
-            <div class="title-wrapper">
-                <div class="game-title exile">EXILE</div>
-                <div class="game-title clash">CLASH</div>
-            </div>
-            <div class="input-section" id="nameSection">
-                <input type="text" class="name-input" id="playerName" placeholder="Enter Your Name" maxlength="20">
-                <div class="btn-group">
-                    <button class="btn btn-primary glass" onclick="enterLobby()">
-                        <i class="fa-solid fa-gamepad"></i> Enter the Arena
-                    </button>
-                    <button class="btn glass" onclick="showCredits()">
-                        <i class="fa-solid fa-star"></i> Credits
-                    </button>
-                </div>
-                <div class="error" id="nameError"></div>
+            <div class="tabs">
+                <div class="tab active" onclick="switchTab('create')">Create</div>
+                <div class="tab" onclick="switchTab('join')">Join</div>
+                <div class="tab" onclick="switchTab('browse')">Browse</div>
             </div>
 
-            <div class="input-section hidden" id="lobbySection">
-                <div style="font-size:20px;font-weight:900;text-align:center;">BATTLE LOBBY</div>
-                <button class="btn btn-primary glass" onclick="createBattle()">
-                    <i class="fa-solid fa-khanda"></i> Create Battle
-                </button>
-                <div class="btn-group">
-                    <input type="text" class="name-input code-input" id="battleCode" placeholder="BATTLE CODE" maxlength="6">
-                    <button class="btn glass" onclick="joinBattle()" style="flex:0;padding:0 16px;">
-                        <i class="fa-solid fa-right-to-bracket"></i>
-                    </button>
+            <div id="error" class="error"></div>
+
+            <!-- Create Tab -->
+            <div id="create-tab" class="tab-content active">
+                <input type="text" id="create-name" placeholder="Your Name" maxlength="20">
+                <input type="text" id="create-lobby-name" placeholder="Lobby Name (Optional)" maxlength="30">
+                <div class="checkbox-wrap">
+                    <input type="checkbox" id="create-public" checked>
+                    <label for="create-public">Public Lobby</label>
                 </div>
-                <div class="lobby-list" id="publicLobbies"></div>
-                <div class="stats"><i class="fa-solid fa-users"></i> <span id="onlineCount">0</span> Warriors Online</div>
-                <div class="error" id="lobbyError"></div>
+                <button onclick="createLobby()">Create Lobby</button>
+            </div>
+
+            <!-- Join Tab -->
+            <div id="join-tab" class="tab-content">
+                <input type="text" id="join-name" placeholder="Your Name" maxlength="20">
+                <input type="text" id="join-code" placeholder="Lobby Code" maxlength="6" style="text-transform: uppercase;">
+                <button onclick="joinLobby()">Join Lobby</button>
+            </div>
+
+            <!-- Browse Tab -->
+            <div id="browse-tab" class="tab-content">
+                <input type="text" id="browse-name" placeholder="Your Name" maxlength="20">
+                <button onclick="loadPublicLobbies()">Refresh Lobbies</button>
+                <div id="lobby-list" class="lobby-list"></div>
             </div>
         </div>
     </div>
 
     <script>
-        const PUSHER_KEY = '52d629612765e85a5546';
-        const PUSHER_CLUSTER = 'ap2';
-        const API = '/api/game';
-        let pusher, globalChannel, playerName = '', userId = localStorage.getItem('exile_uid') || Math.random().toString(36).substring(7);
-        localStorage.setItem('exile_uid', userId);
+        let uid = localStorage.getItem('exile_uid') || generateUID();
+        localStorage.setItem('exile_uid', uid);
 
-        window.addEventListener('load', function() {
-            setTimeout(() => {
-                document.getElementById('loading').classList.add('hidden');
-            }, 2200);
-        });
+        function generateUID() {
+            return 'user_' + Math.random().toString(36).substring(2, 15);
+        }
 
-        function toggleTheme() {
-            document.body.classList.toggle('light');
-            const btn = document.querySelector('.theme-btn');
-            if (document.body.classList.contains('light')) {
-                btn.innerHTML = '<i class="fa-solid fa-moon"></i> Theme';
-                localStorage.setItem('theme', 'light');
-            } else {
-                btn.innerHTML = '<i class="fa-solid fa-sun"></i> Theme';
-                localStorage.setItem('theme', 'dark');
+        function switchTab(tab) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            event.target.classList.add('active');
+            document.getElementById(tab + '-tab').classList.add('active');
+            hideError();
+        }
+
+        function showError(msg) {
+            const el = document.getElementById('error');
+            el.textContent = msg;
+            el.classList.add('show');
+        }
+
+        function hideError() {
+            document.getElementById('error').classList.remove('show');
+        }
+
+        async function createLobby() {
+            const name = document.getElementById('create-name').value.trim();
+            const lobbyName = document.getElementById('create-lobby-name').value.trim();
+            const isPublic = document.getElementById('create-public').checked? 1 : 0;
+
+            if (!name) return showError('Enter your name');
+
+            hideError();
+            try {
+                const res = await fetch('/api/game', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'create_lobby',
+                        uid,
+                        name: lobbyName || 'Exile Clash',
+                        is_public: isPublic,
+                        player_name: name
+                    })
+                });
+                const data = await res.json();
+                if (data.error) return showError(data.error);
+                localStorage.setItem('exile_name', name);
+                window.location.href = `/game?code=${data.lobby_id}`;
+            } catch (e) {
+                showError('Failed to create lobby');
             }
         }
 
-        const savedTheme = localStorage.getItem('theme');
-        if (savedTheme === 'light') {
-            document.body.classList.add('light');
-            document.querySelector('.theme-btn').innerHTML = '<i class="fa-solid fa-moon"></i> Theme';
-        }
+        async function joinLobby() {
+            const name = document.getElementById('join-name').value.trim();
+            const code = document.getElementById('join-code').value.trim().toUpperCase();
 
-        async function enterLobby() {
-            const name = document.getElementById('playerName').value.trim();
-            if (!name) {
-                document.getElementById('nameError').textContent = 'Please enter your name!';
-                return;
-            }
-            playerName = name;
-            localStorage.setItem('exile_player_name', playerName);
-            document.getElementById('nameSection').classList.add('hidden');
-            document.getElementById('lobbySection').classList.remove('hidden');
-            initPusher();
-            loadPublicLobbies();
-            setInterval(loadPublicLobbies, 5000);
-        }
+            if (!name) return showError('Enter your name');
+            if (!code) return showError('Enter lobby code');
 
-        function initPusher() {
-            pusher = new Pusher(PUSHER_KEY, {
-                cluster: PUSHER_CLUSTER,
-                authEndpoint: '/api/pusher/auth',
-                auth: { params: { user_info: JSON.stringify({ user_id: userId, username: playerName }) } }
-            });
-
-            globalChannel = pusher.subscribe('presence-global');
-            globalChannel.bind('pusher:subscription_succeeded', (m) => document.getElementById('onlineCount').textContent = m.count);
-            globalChannel.bind('pusher:member_added', () => document.getElementById('onlineCount').textContent = globalChannel.members.count);
-            globalChannel.bind('pusher:member_removed', () => document.getElementById('onlineCount').textContent = globalChannel.members.count);
-        }
-
-        async function createBattle() {
-            const res = await fetch(API, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    action: 'create_lobby',
-                    uid: userId,
-                    name: 'Exile Clash',
-                    is_public: 1,
-                    player_name: playerName
-                })
-            });
-            const data = await res.json();
-            if (data.success) {
-                window.location.href = `/game.html?code=${data.lobby_id}`;
-            } else {
-                document.getElementById('lobbyError').textContent = data.error || 'Failed to create';
-            }
-        }
-
-        async function joinBattle() {
-            const code = document.getElementById('battleCode').value.trim().toUpperCase();
-            if (!code || code.length !== 6) {
-                document.getElementById('lobbyError').textContent = 'Enter valid 6-char code!';
-                return;
-            }
-            const res = await fetch(API, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    action: 'join_lobby',
-                    lobby_id: code,
-                    uid: userId,
-                    player_name: playerName
-                })
-            });
-            const data = await res.json();
-            if (data.success) {
-                window.location.href = `/game.html?code=${code}`;
-            } else {
-                document.getElementById('lobbyError').textContent = data.error || 'Failed to join';
+            hideError();
+            try {
+                const res = await fetch('/api/game', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'join_lobby',
+                        lobby_id: code,
+                        uid,
+                        player_name: name
+                    })
+                });
+                const data = await res.json();
+                if (data.error) return showError(data.error);
+                localStorage.setItem('exile_name', name);
+                window.location.href = `/game?code=${code}`;
+            } catch (e) {
+                showError('Failed to join lobby');
             }
         }
 
         async function loadPublicLobbies() {
+            const name = document.getElementById('browse-name').value.trim();
+            if (!name) return showError('Enter your name first');
+
+            hideError();
+            const list = document.getElementById('lobby-list');
+            list.innerHTML = '<div class="loading">Loading...</div>';
+
             try {
-                const res = await fetch(`${API}?action=get_public_lobbies`);
+                const res = await fetch('/api/game?action=get_public_lobbies');
                 const data = await res.json();
-                const list = document.getElementById('publicLobbies');
+
                 if (!data.lobbies || data.lobbies.length === 0) {
-                    list.innerHTML = '<div style="text-align:center;opacity:0.6;font-size:14px;">No public battles</div>';
+                    list.innerHTML = '<div class="loading">No public lobbies found</div>';
                     return;
                 }
-                list.innerHTML = data.lobbies.map(l => `
-                    <div class="lobby-item" onclick="quickJoin('${l._id}')">
-                        <span style="font-weight:700;">${l.name}</span>
-                        <span style="opacity:0.7;font-size:14px;">${l.players.length}/6</span>
+
+                list.innerHTML = data.lobbies.map(lobby => `
+                    <div class="lobby-item" onclick="joinPublicLobby('${lobby._id}', '${name}')">
+                        <div class="lobby-info">
+                            <h3>${lobby.name}</h3>
+                            <p>${lobby.players.length}/6 players</p>
+                        </div>
+                        <div>→</div>
                     </div>
                 `).join('');
-            } catch (e) {}
+            } catch (e) {
+                list.innerHTML = '<div class="loading">Failed to load lobbies</div>';
+            }
         }
 
-        function quickJoin(code) {
-            document.getElementById('battleCode').value = code;
-            joinBattle();
+        async function joinPublicLobby(lobbyId, name) {
+            try {
+                const res = await fetch('/api/game', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'join_lobby',
+                        lobby_id: lobbyId,
+                        uid,
+                        player_name: name
+                    })
+                });
+                const data = await res.json();
+                if (data.error) return showError(data.error);
+                localStorage.setItem('exile_name', name);
+                window.location.href = `/game?code=${lobbyId}`;
+            } catch (e) {
+                showError('Failed to join lobby');
+            }
         }
 
-        function showCredits() {
-            alert('Exile Clash - Real-time RPS Battle\nBuilt with MongoDB + Pusher + Vercel\n\nBy Nethindu 🐻');
+        // Auto-fill saved name
+        const savedName = localStorage.getItem('exile_name');
+        if (savedName) {
+            document.getElementById('create-name').value = savedName;
+            document.getElementById('join-name').value = savedName;
+            document.getElementById('browse-name').value = savedName;
         }
-
-        document.getElementById('battleCode').addEventListener('input', e => {
-            e.target.value = e.target.value.toUpperCase();
-        });
-
-        document.getElementById('playerName').addEventListener('keypress', e => {
-            if (e.key === 'Enter') enterLobby();
-        });
     </script>
 </body>
-                                                                    </html>
+</html>
