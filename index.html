@@ -161,6 +161,12 @@
             from { opacity: 0; transform: translate(-50%, 20px); }
             to { opacity: 1; transform: translate(-50%, 0); }
         }
+        .checkbox-group {
+            display: flex; align-items: center; gap: 10px; margin-bottom: 20px;
+        }
+        input[type="checkbox"] {
+            width: 20px; height: 20px; cursor: pointer;
+        }
     </style>
 </head>
 <body>
@@ -196,6 +202,7 @@
 
             <div class="input-section hidden" id="lobbySection">
                 <div style="font-size:20px;font-weight:900;text-align:center;">BATTLE LOBBY</div>
+                <input type="text" class="name-input" id="lobbyNameInput" placeholder="Enter Lobby Name" maxlength="30">
                 <button class="btn btn-primary glass" onclick="createBattle()">
                     <i class="fa-solid fa-khanda"></i> Create Battle
                 </button>
@@ -204,6 +211,10 @@
                     <button class="btn glass" onclick="joinBattle()" style="flex:0;padding:0 16px;">
                         <i class="fa-solid fa-right-to-bracket"></i>
                     </button>
+                </div>
+                <div class="checkbox-group">
+                    <input type="checkbox" id="isPublic" checked>
+                    <label for="isPublic">Public Lobby</label>
                 </div>
                 <div class="lobby-list" id="publicLobbies"></div>
                 <div class="stats"><i class="fa-solid fa-users"></i> <span id="onlineCount">0</span> Warriors Online</div>
@@ -320,14 +331,26 @@
         }
 
         async function createBattle() {
+            const lobbyName = document.getElementById('lobbyNameInput').value.trim();
+            const isPublic = document.getElementById('isPublic').checked;
+            
+            if (!lobbyName) {
+                document.getElementById('lobbyError').textContent = 'Please enter a lobby name!';
+                return;
+            }
+            if (lobbyName.length < 3) {
+                document.getElementById('lobbyError').textContent = 'Lobby name too short!';
+                return;
+            }
+
             const res = await fetch(API, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     action: 'create_lobby',
                     uid: userId,
-                    name: 'Exile Clash',
-                    is_public: 1,
+                    name: lobbyName,
+                    is_public: isPublic ? 1 : 0,
                     player_name: playerName
                 })
             });
