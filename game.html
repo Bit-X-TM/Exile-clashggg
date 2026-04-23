@@ -24,24 +24,12 @@
             box-shadow: 0 4px 30px rgba(0, 0, 0, 0.3); backdrop-filter: blur(3.7px);
             -webkit-backdrop-filter: blur(3.7px); border: 1px solid rgba(255, 255, 255, 0.08);
         }
-        body.light .glass {
-            background: rgba(255, 255, 255, 0.17); border: 1px solid rgba(255, 255, 255, 0.09);
-            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
-        }
-        .top-bar {
-            position: fixed; top: 20px; left: 20px; right: 20px; height: 60px;
-            display: flex; justify-content: space-between; align-items: center; padding: 0 24px; z-index: 100;
-        }
+        body.light .glass { background: rgba(255, 255, 255, 0.17); border: 1px solid rgba(255, 255, 255, 0.09); box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1); }
+        .top-bar { position: fixed; top: 20px; left: 20px; right: 20px; height: 60px; display: flex; justify-content: space-between; align-items: center; padding: 0 24px; z-index: 100; }
         .logo { font-size: clamp(16px, 3vw, 20px); font-weight: 700; text-shadow: 0 2px 4px rgba(0,0,0,0.3); }
         body.light .logo { text-shadow: 0 2px 4px rgba(255,255,255,0.3); }
-        .theme-btn {
-            padding: 8px 16px; border-radius: 12px; cursor: pointer;
-            font-size: clamp(12px, 2.5vw, 14px); border: none; font-family: 'Poppins', sans-serif; font-weight: 700;
-        }
-        .page-wrapper {
-            position: fixed; top: 100px; left: 20px; right: 20px; bottom: 20px;
-            padding: clamp(20px, 4vw, 40px); display: flex; justify-content: center; align-items: center;
-        }
+        .theme-btn { padding: 8px 16px; border-radius: 12px; cursor: pointer; font-size: clamp(12px, 2.5vw, 14px); border: none; font-family: 'Poppins', sans-serif; font-weight: 700; }
+        .page-wrapper { position: fixed; top: 100px; left: 20px; right: 20px; bottom: 20px; padding: clamp(20px, 4vw, 40px); display: flex; justify-content: center; align-items: center; overflow-y: auto; }
         .battle-container { width: 100%; max-width: 800px; padding: 30px; }
         .code-display { font-size: clamp(20px, 4vw, 28px); font-weight: 900; letter-spacing: 3px; text-align: center; margin-bottom: 20px; }
         .players-bar { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin-bottom: 20px; }
@@ -69,17 +57,13 @@
         <div class="logo"><i class="fa-solid fa-khanda"></i> Exile Clash</div>
         <button class="theme-btn glass" onclick="toggleTheme()"><i class="fa-solid fa-sun"></i></button>
     </div>
-
     <div class="page-wrapper glass">
         <div class="battle-container">
             <div class="code-display">BATTLE: <span id="codeDisplay">------</span></div>
             <div class="players-bar" id="playersBar"></div>
-            
             <div class="game-title">CLASH ARENA</div>
             <div class="score"><span id="myScore">0</span> - <span id="opponentScore">0</span></div>
-            
             <div class="waiting" id="waitingMsg">Waiting for opponent...</div>
-            
             <div id="gameContent" style="display:none;">
                 <div style="text-align:center;opacity:0.7;margin-bottom:20px;">Choose Your Weapon</div>
                 <div class="choices">
@@ -90,15 +74,11 @@
                 <div class="vs" id="vsDisplay"></div>
                 <div class="result" id="resultDisplay"></div>
             </div>
-
             <div style="text-align:center;margin-top:30px;">
-                <button class="btn btn-danger glass" onclick="leaveGame()">
-                    <i class="fa-solid fa-door-open"></i> Retreat
-                </button>
+                <button class="btn btn-danger glass" onclick="leaveGame()"><i class="fa-solid fa-door-open"></i> Retreat</button>
             </div>
         </div>
     </div>
-
     <script>
         const PUSHER_KEY = '52d629612765e85a5546';
         const PUSHER_CLUSTER = 'ap2';
@@ -136,32 +116,26 @@
                 authEndpoint: '/api/pusher/auth',
                 auth: { params: { user_info: JSON.stringify({ user_id: userId, username: playerName }) } }
             });
-
             gameChannel = pusher.subscribe(`presence-game-${gameCode}`);
-
             gameChannel.bind('pusher:subscription_succeeded', (members) => {
                 updatePlayers(members);
                 if (members.count === 2) startRound();
             });
-
             gameChannel.bind('pusher:member_added', (member) => {
                 updatePlayers(gameChannel.members);
                 if (gameChannel.members.count === 2) startRound();
             });
-
             gameChannel.bind('pusher:member_removed', () => {
                 updatePlayers(gameChannel.members);
                 document.getElementById('waitingMsg').style.display = 'block';
                 document.getElementById('gameContent').style.display = 'none';
             });
-
             gameChannel.bind('client-choice', (data) => {
                 if (data.userId!== userId) {
                     opponentChoice = data.choice;
                     checkResult();
                 }
             });
-
             gameChannel.bind('client-reset', () => resetRound());
         }
 
@@ -194,7 +168,6 @@
             if (!myChoice ||!opponentChoice) return;
             const vs = `${getEmoji(myChoice)} VS ${getEmoji(opponentChoice)}`;
             document.getElementById('vsDisplay').textContent = vs;
-
             let result = '';
             if (myChoice === opponentChoice) result = "DRAW!";
             else if (
@@ -206,11 +179,9 @@
             } else {
                 result = "DEFEAT!"; opponentScore++;
             }
-
             document.getElementById('resultDisplay').textContent = result;
             document.getElementById('myScore').textContent = myScore;
             document.getElementById('opponentScore').textContent = opponentScore;
-
             setTimeout(() => gameChannel.trigger('client-reset', {}), 3000);
         }
 
