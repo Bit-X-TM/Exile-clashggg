@@ -28,48 +28,7 @@ const SHOP_ITEMS = {
 };
 
 const PHASE_DURATIONS = { rps: 15, coin: 20 };
-// ඔක්කොම actions වලට කලින් මේක දාන්න
-if (action === 'admin_login') {
-    const { username, password } = req.body;
-    if (username === 'Nethindu' && password === '1234') {
-        return res.json({ success: true, token: 'admin_token_exile_1234' });
-    }
-    return res.json({ error: 'Invalid credentials' });
-}
 
-if (action === 'delete_lobby') {
-    const { lobby_id, admin_token } = req.body;
-    
-    // Simple admin check
-    if (admin_token !== 'admin_token_exile_1234') {
-        return res.json({ error: 'Unauthorized' });
-    }
-
-    const result = await db.collection('lobbies').deleteOne({ _id: lobby_id });
-    
-    if (result.deletedCount > 0) {
-        await pusher.trigger('presence-global', 'lobby-deleted', { lobby_id });
-        return res.json({ success: true, message: 'Lobby deleted' });
-    }
-    return res.json({ error: 'Lobby not found' });
-}
-
-if (action === 'get_all_lobbies') {
-    const { admin_token } = req.body;
-    
-    if (admin_token !== 'admin_token_exile_1234') {
-        return res.json({ error: 'Unauthorized' });
-    }
-
-    const lobbies = await db.collection('lobbies')
-        .find({})
-        .sort({ created_at: -1 })
-        .limit(50)
-        .toArray();
-    
-    return res.json({ lobbies });
-}
-// Auto delete: waiting 1min + no activity, playing 30min, finished 5min
 async function cleanupInactiveLobbies(db) {
     const now = Date.now();
     const oneMinAgo = new Date(now - 60 * 1000);
@@ -78,7 +37,7 @@ async function cleanupInactiveLobbies(db) {
 
     const result = await db.collection('lobbies').deleteMany({
         $or: [
-            { status: 'waiting', players: { $size: 1 }, updated_at: { $lt: oneMinAgo } }, // Host විතරක් 1min
+            { status: 'waiting', players: { $size: 1 }, updated_at: { $lt: oneMinAgo } },
             { status: 'playing', updated_at: { $lt: thirtyMinAgo } },
             { status: 'finished', updated_at: { $lt: fiveMinAgo } }
         ]
@@ -88,7 +47,6 @@ async function cleanupInactiveLobbies(db) {
     }
 }
 
-// Check if all alive players have 0 coins -> auto next round
 async function checkAllCoinsZero(lobbyId, db) {
     const lobby = await db.collection('lobbies').findOne({ _id: lobbyId });
     if (!lobby || lobby.phase!== 'coin') return;
@@ -193,8 +151,6 @@ async function resolveRPSPhase(lobbyId, db) {
     );
 
     await pusher.trigger(`game-${lobbyId}`, 'rps-resolved', {});
-
-    // Auto check if everyone gets 0 coins
     setTimeout(() => checkAllCoinsZero(lobbyId, db), 1000);
 }
 
@@ -211,10 +167,60 @@ module.exports = async (req, res) => {
 
         const { action } = req.method === 'GET'? req.query : req.body;
 
+        if (action === 'admin_login') {
+            const { username, password } = req.body;
+            if (username === 'Nethindu' && password === '1234') {
+                return res.json({ success: true, token: 'admin_token_exile_1234' });
+            }
+            return res.json({ error: 'Invalid credentials' });
+        }
+
+        if (action === 'delete_lobby') {
+            const { lobby_id, admin_token } = req.body;
+
+            if (admin_token!== 'admin_token_exile_1234') {
+                return res.json({ error: 'Unauthorized' });
+            }
+
+            const result = await db.collection('lobbies').deleteOne({ _id: lobby_id });
+
+            if (result.deletedCount > 0) {
+                await pusher.trigger('presence-global', 'lobby-deleted', { lobby_id });
+                return res.json({ success: true, message: 'Lobby deleted' });
+            }
+            return res.json({ error: 'Lobby not found' });
+        }
+
+        if (action === 'get_all_lobbies') {
+            const { admin_token } = req.body;
+
+            if (admin_token!== 'admin_token_exile_1234') {
+                return res.json({ error: 'Unauthorized' });
+            }
+
+            const lobbies = await db.collection('lobbies')
+               .find({})
+               .sort({ created_at: -1 })
+               .limit(50)
+               .toArray();
+
+            return res.json({ lobbies });
+        }
+
         if (action === 'create_lobby') {
             const { uid, name, is_public, player_name } = req.body;
-            const lobbyId = Math.random().toString(36).substring(2, 8).toUpperCase();
             const now = new Date();
+
+            const existingLobby = await db.collection('lobbies').findOne({
+                name: name || 'Exile Clash',
+                status: { $in: ['waiting', 'playing'] }
+            });
+
+            if (existingLobby) {
+                return res.json({ error: 'Lobby name already taken! Choose another name 🐻' });
+            }
+
+            const lobbyId = Math.random().toString(36).substring(2, 8).toUpperCase();
 
             const lobby = {
                 _id: lobbyId,
