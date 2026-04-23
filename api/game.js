@@ -75,16 +75,12 @@ async function startNextRound(lobbyId, db) {
         }
     );
 
-    setTimeout(async () => {
-        await resolveRPSPhase(lobbyId, db);
-    }, PHASE_DURATIONS.rps * 1000);
-
     await pusher.trigger(`game-${lobbyId}`, 'state-update', {});
 }
 
 async function resolveRPSPhase(lobbyId, db) {
     const lobby = await db.collection('lobbies').findOne({ _id: lobbyId });
-    if (!lobby || lobby.phase!== 'rps') return;
+    if (!lobby || lobby.phase!== 'rps') return { error: 'Not RPS phase' };
 
     const alivePlayers = lobby.players.filter(p =>!p.is_dead);
     const choices = ['rock', 'paper', 'scissors'];
@@ -152,6 +148,7 @@ async function resolveRPSPhase(lobbyId, db) {
 
     await pusher.trigger(`game-${lobbyId}`, 'rps-resolved', {});
     setTimeout(() => checkAllCoinsZero(lobbyId, db), 1000);
+    return { success: true };
 }
 
 module.exports = async (req, res) => {
@@ -177,13 +174,10 @@ module.exports = async (req, res) => {
 
         if (action === 'delete_lobby') {
             const { lobby_id, admin_token } = req.body;
-
             if (admin_token!== 'admin_token_exile_1234') {
                 return res.json({ error: 'Unauthorized' });
             }
-
             const result = await db.collection('lobbies').deleteOne({ _id: lobby_id });
-
             if (result.deletedCount > 0) {
                 await pusher.trigger('presence-global', 'lobby-deleted', { lobby_id });
                 return res.json({ success: true, message: 'Lobby deleted' });
@@ -193,17 +187,14 @@ module.exports = async (req, res) => {
 
         if (action === 'get_all_lobbies') {
             const { admin_token } = req.body;
-
             if (admin_token!== 'admin_token_exile_1234') {
                 return res.json({ error: 'Unauthorized' });
             }
-
             const lobbies = await db.collection('lobbies')
-              .find({})
-              .sort({ created_at: -1 })
-              .limit(50)
-              .toArray();
-
+             .find({})
+             .sort({ created_at: -1 })
+             .limit(50)
+             .toArray();
             return res.json({ lobbies });
         }
 
@@ -305,10 +296,10 @@ module.exports = async (req, res) => {
 
         if (action === 'get_public_lobbies') {
             const lobbies = await db.collection('lobbies')
-              .find({ is_public: 1, status: 'waiting' })
-              .sort({ created_at: -1 })
-              .limit(10)
-              .toArray();
+             .find({ is_public: 1, status: 'waiting' })
+             .sort({ created_at: -1 })
+             .limit(10)
+             .toArray();
             return res.json({ lobbies });
         }
 
@@ -333,11 +324,13 @@ module.exports = async (req, res) => {
             );
 
             await pusher.trigger(`game-${lobby_id}`, 'game-started', {});
-            setTimeout(async () => {
-                await resolveRPSPhase(lobby_id, db);
-            }, PHASE_DURATIONS.rps * 1000);
-
             return res.json({ success: true });
+        }
+
+        if (action === 'resolve_rps') {
+            const { lobby_id } = req.body;
+            const result = await resolveRPSPhase(lobby_id, db);
+            return res.json(result);
         }
 
         if (action === 'rps_choice') {
