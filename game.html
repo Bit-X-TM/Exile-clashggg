@@ -344,7 +344,6 @@
                 const damageClass = health < 4 ? `damage-${4 - health}` : '';
                 const shieldsHtml = Array(p.shields).fill(0).map(() => '<div class="shield-icon"></div>').join('');
                 
-                // FIXED: Handle null/undefined rps_result
                 let resultClass = '';
                 if (p.rps_result) {
                     resultClass = p.rps_result === 'WIN' ? 'result-win' : 
@@ -474,7 +473,13 @@
                 const now = Math.floor(Date.now() / 1000);
                 const remaining = Math.max(0, gameState.phase_end_time - now);
                 document.getElementById('timer').textContent = remaining + 's';
-                if (remaining === 0) clearInterval(timerInterval);
+                
+                if (remaining === 0) {
+                    clearInterval(timerInterval);
+                    if (gameState.phase === 'rps' && gameState.host_uid === userId) {
+                        apiCall('resolve_rps');
+                    }
+                }
             };
 
             update();
