@@ -1,15 +1,14 @@
-import Pusher from 'pusher';
+const Pusher = require('pusher');
 
 const pusher = new Pusher({
   appId: process.env.PUSHER_APP_ID,
-  key: "52d629612765e85a5546",
+  key: '52d629612765e85a5546',
   secret: process.env.PUSHER_SECRET,
-  cluster: "ap2",
+  cluster: 'ap2',
   useTLS: true
 });
 
-export default async function handler(req, res) {
-  // CORS Headers
+module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -24,14 +23,13 @@ export default async function handler(req, res) {
 
   try {
     const { socket_id, channel_name } = req.body;
-    
+
     if (!socket_id || !channel_name) {
       return res.status(400).json({ error: 'Missing socket_id or channel_name' });
     }
 
-    // Presence channel එකට user data pass කරනවා
     let userData = { user_id: socket_id, username: 'Guest' };
-    
+
     if (req.body.user_info) {
       try {
         const parsed = JSON.parse(req.body.user_info);
@@ -51,13 +49,11 @@ export default async function handler(req, res) {
       }
     };
 
-    // Pusher එකෙන් auth signature එක generate කරගන්නවා
     const auth = pusher.authorizeChannel(socket_id, channel_name, presenceData);
-    
     return res.status(200).send(auth);
-    
+
   } catch (error) {
     console.error('Pusher auth error:', error);
     return res.status(500).json({ error: 'Auth failed', message: error.message });
   }
-}
+};
