@@ -128,9 +128,33 @@ async function startNextRound(lobbyId, db) {
             }
         );
 
+        // FIX: bots pick immediately so they never cause a guaranteed draw loop
+        await botPickRPS(lobbyId, db);
         await pusher.trigger(`game-${lobbyId}`, 'state-update', {});
     } catch (error) {
         console.error('Start Next Round Error:', error);
+    }
+}
+
+// FIX: Bots pick their RPS choice right when the phase starts.
+// Previously bots only got a random choice assigned inside resolveRPSPhase,
+// meaning every round had a 1-in-3 chance of a "full draw" → infinite reset loop.
+// Now bots pick proactively, and resolution works correctly every time.
+async function botPickRPS(lobbyId, db) {
+    try {
+        const lobby = await db.collection('lobbies').findOne({ _id: lobbyId });
+        if (!lobby) return;
+        const choices = ['rock', 'paper', 'scissors'];
+        const bots = lobby.players.filter(p => p.uid.startsWith('bot_') && !p.is_dead);
+        for (const bot of bots) {
+            const randomChoice = choices[Math.floor(Math.random() * 3)];
+            await db.collection('lobbies').updateOne(
+                { _id: lobbyId, 'players.uid': bot.uid },
+                { $set: { 'players.$.rps_choice': randomChoice, updated_at: new Date() } }
+            );
+        }
+    } catch (error) {
+        console.error('Bot Pick RPS Error:', error);
     }
 }
 
@@ -150,7 +174,7 @@ async function resolveRPSPhase(lobbyId, db) {
 
         const choices = ['rock', 'paper', 'scissors'];
 
-        // Auto-pick for bots and AFK players
+        // Auto-pick for AFK HUMAN players only (bots already picked via botPickRPS)
         const updates = [];
         for (const player of alivePlayers) {
             if (!player.rps_choice) {
@@ -187,11 +211,31 @@ async function resolveRPSPhase(lobbyId, db) {
 
         const opponents = players.length - 1;
         // A player WINS if they beat everyone; LOSE if beaten by everyone; else DRAW
-        const anyWinner = playerResults.some(r => r.wins === opponents);
         const isFullDraw = playerResults.every(r => r.wins === 0 && r.losses === 0);
 
-        // Full draw (all same choice) → replay
+        // Full draw (everyone picked same) → bots re-pick a DIFFERENT choice to guarantee no infinite loop
         if (isFullDraw) {
+            const humanChoices = players.filter(p => !p.uid.startsWith('bot_')).map(p => p.rps_choice);
+            const humanChoice = humanChoices[0]; // in 2-player: the one human's choice
+            const botResets = [];
+            for (const p of players) {
+                if (p.uid.startsWith('bot_')) {
+                    // Pick a choice that beats the human — guaranteed non-draw
+                    const winningChoice = choices.find(c => winsAgainst(c, humanChoice)) || choices[Math.floor(Math.random() * 3)];
+                    botResets.push({
+                        updateOne: {
+                            filter: { _id: lobbyId, 'players.uid': p.uid },
+                            update: { $set: { 'players.$.rps_choice': winningChoice } }
+                        }
+                    });
+                }
+            }
+            if (botResets.length > 0) {
+                await db.collection('lobbies').bulkWrite(botResets);
+                // Re-run resolution immediately — no reset needed, just recurse once
+                return resolveRPSPhase(lobbyId, db);
+            }
+            // Pure human draw — reset and ask again
             const phaseEndTime = Math.floor(Date.now() / 1000) + PHASE_DURATIONS.rps;
             await db.collection('lobbies').updateOne(
                 { _id: lobbyId },
@@ -206,6 +250,8 @@ async function resolveRPSPhase(lobbyId, db) {
                 }
             );
             await pusher.trigger(`game-${lobbyId}`, 'rps-draw', { message: 'Draw! Choose again!' });
+            // FIX: bots re-pick immediately on draw reset too
+            await botPickRPS(lobbyId, db);
             return { success: true, draw: true };
         }
 
@@ -554,6 +600,8 @@ module.exports = async (req, res) => {
                 }
             );
 
+            // FIX: bots pick their RPS choice immediately when game starts
+            await botPickRPS(lobby_id, db);
             await pusher.trigger(`game-${lobby_id}`, 'game-started', {});
             return res.json({ success: true });
         }
