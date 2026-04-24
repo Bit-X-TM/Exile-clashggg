@@ -290,7 +290,8 @@ async function resolveRPSPhase(lobbyId, db) {
         );
 
         await pusher.trigger(`game-${lobbyId}`, 'rps-resolved', {});
-        setTimeout(() => checkAllCoinsZero(lobbyId, db), 1000);
+        // Bots act automatically in coin phase (delay lets clients see the transition first)
+        setTimeout(() => botTurn(lobbyId, db), 800);
         return { success: true };
     } catch (error) {
         console.error('Resolve RPS Error:', error);
@@ -298,82 +299,96 @@ async function resolveRPSPhase(lobbyId, db) {
     }
 }
 
-// FIX: Rewrote botTurn to avoid broken MongoDB arrayFilter when target has shields (canon)
-// or when slicer hits a shielded target (no t filter should be pushed in that case).
 async function botTurn(lobbyId, db) {
     try {
         const lobby = await db.collection('lobbies').findOne({ _id: lobbyId });
         if (!lobby || lobby.phase !== 'coin') return;
 
-        const bots = lobby.players.filter(p => p.uid.startsWith('bot_') && !p.is_dead);
-        const humans = lobby.players.filter(p => !p.uid.startsWith('bot_') && !p.is_dead);
+        const aliveBots = lobby.players.filter(p => p.uid.startsWith('bot_') && !p.is_dead);
+        if (aliveBots.length === 0) return;
 
-        for (const bot of bots) {
-            // Buy random item if possible
-            if (bot.coins > 0) {
-                const items = Object.keys(SHOP_ITEMS);
-                const item = items[Math.floor(Math.random() * items.length)];
-                if (bot[item] < SHOP_ITEMS[item].max) {
-                    await db.collection('lobbies').updateOne(
-                        { _id: lobbyId, 'players.uid': bot.uid },
-                        {
-                            $inc: {
-                                'players.$.coins': -1,
-                                [`players.$.${item}`]: 1
-                            },
-                            $set: { updated_at: new Date() }
-                        }
-                    );
-                }
+        for (const botSnap of aliveBots) {
+            // --- Re-fetch fresh state before every bot action ---
+            const current = await db.collection('lobbies').findOne({ _id: lobbyId });
+            if (!current || current.phase !== 'coin') return;
+
+            const bot = current.players.find(p => p.uid === botSnap.uid);
+            if (!bot || bot.is_dead) continue;
+
+            // 1. Spend all coins: prefer slicer over cannon (more aggressive)
+            let coinsLeft = bot.coins;
+            while (coinsLeft > 0) {
+                const itemKeys = Object.keys(SHOP_ITEMS);
+                // Pick: slicer first, then canon, then shield
+                const preferred = ['slicer', 'canon', 'shields'];
+                const item = preferred.find(k => bot[k] < SHOP_ITEMS[k].max) || itemKeys.find(k => bot[k] < SHOP_ITEMS[k].max);
+                if (!item) break;
+                await db.collection('lobbies').updateOne(
+                    { _id: lobbyId, 'players.uid': bot.uid },
+                    { $inc: { 'players.$.coins': -1, [`players.$.${item}`]: 1 }, $set: { updated_at: new Date() } }
+                );
+                bot[item] = (bot[item] || 0) + 1;
+                bot.coins -= 1;
+                coinsLeft--;
             }
 
-            // Attack random human
-            if ((bot.canon > 0 || bot.slicer > 0) && humans.length > 0) {
-                // Re-fetch bot state after buying
+            // 2. Use ALL weapons — attack until no weapons left
+            let attackLoop = 0;
+            while (attackLoop < 10) {
+                attackLoop++;
+                // Re-fetch bot's current weapon counts
                 const freshLobby = await db.collection('lobbies').findOne({ _id: lobbyId });
+                if (!freshLobby || freshLobby.phase !== 'coin') return;
                 const freshBot = freshLobby.players.find(p => p.uid === bot.uid);
-                if (!freshBot) continue;
+                if (!freshBot || freshBot.is_dead) break;
 
-                const target = humans[Math.floor(Math.random() * humans.length)];
+                const weapon = freshBot.canon > 0 ? 'canon' : freshBot.slicer > 0 ? 'slicer' : null;
+                if (!weapon) break; // no weapons left
+
+                // Pick a random alive enemy (bots attack ANY alive player, including other bots)
+                const enemies = freshLobby.players.filter(p => !p.is_dead && p.uid !== bot.uid);
+                if (enemies.length === 0) break;
+                const target = enemies[Math.floor(Math.random() * enemies.length)];
                 const freshTarget = freshLobby.players.find(p => p.uid === target.uid);
                 if (!freshTarget || freshTarget.is_dead) continue;
 
-                const weapon = freshBot.canon > 0 ? 'canon' : freshBot.slicer > 0 ? 'slicer' : null;
-                if (!weapon) continue;
-
-                // Decrement bot's weapon
+                // Decrement weapon
                 await db.collection('lobbies').updateOne(
                     { _id: lobbyId, 'players.uid': freshBot.uid },
-                    { $inc: { 'players.$.': -1 }, $set: { updated_at: new Date() } }
+                    { $inc: { [`players.$.${weapon}`]: -1 }, $set: { updated_at: new Date() } }
                 );
-                // FIX: use positional $[elem] properly — do separate updates to avoid multi-filter bugs
-                await db.collection('lobbies').updateOne(
-                    { _id: lobbyId, 'players.uid': freshBot.uid },
-                    {
-                        $inc: { [`players.$.${weapon}`]: -1 },
-                        $set: { updated_at: new Date() }
+
+                // Apply effect
+                if (weapon === 'canon') {
+                    if (freshTarget.shields > 0) {
+                        await db.collection('lobbies').updateOne(
+                            { _id: lobbyId, 'players.uid': freshTarget.uid },
+                            { $inc: { 'players.$.shields': -1 }, $set: { updated_at: new Date() } }
+                        );
                     }
-                );
-
-                if (weapon === 'canon' && freshTarget.shields > 0) {
-                    // Destroy one shield
-                    await db.collection('lobbies').updateOne(
-                        { _id: lobbyId, 'players.uid': freshTarget.uid },
-                        { $inc: { 'players.$.shields': -1 }, $set: { updated_at: new Date() } }
-                    );
-                } else if (weapon === 'slicer' && freshTarget.shields === 0) {
-                    const newHealth = Math.max(0, freshTarget.health - 1);
-                    const isDead = newHealth === 0;
-                    await db.collection('lobbies').updateOne(
-                        { _id: lobbyId, 'players.uid': freshTarget.uid },
-                        {
-                            $set: {
-                                'players.$.health': newHealth,
-                                'players.$.is_dead': isDead,
-                                updated_at: new Date()
+                    // cannon does nothing if no shields (by design)
+                } else if (weapon === 'slicer') {
+                    if (freshTarget.shields === 0) {
+                        const newHealth = Math.max(0, freshTarget.health - 1);
+                        const isDead = newHealth === 0;
+                        await db.collection('lobbies').updateOne(
+                            { _id: lobbyId, 'players.uid': freshTarget.uid },
+                            { $set: { 'players.$.health': newHealth, 'players.$.is_dead': isDead, updated_at: new Date() } }
+                        );
+                        if (isDead) {
+                            // Check if game is over after this kill
+                            const afterKill = await db.collection('lobbies').findOne({ _id: lobbyId });
+                            const alive = afterKill.players.filter(p => !p.is_dead);
+                            if (alive.length === 1) {
+                                await db.collection('lobbies').updateOne(
+                                    { _id: lobbyId },
+                                    { $set: { status: 'finished', phase: 'finished', updated_at: new Date() } }
+                                );
+                                await pusher.trigger(`game-${lobbyId}`, 'game-ended', { winner: alive[0] });
+                                return;
                             }
                         }
-                    );
+                    }
                 }
             }
         }
