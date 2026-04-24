@@ -101,7 +101,8 @@ async function checkAllCoinsZero(lobbyId, db) {
         if (!lobby || lobby.phase !== 'coin') return;
 
         const alivePlayers = lobby.players.filter(p => !p.is_dead);
-        const allZero = alivePlayers.every(p => p.coins === 0 && p.canon === 0 && p.slicer === 0);
+        // Only coins block the next round — weapons carry over so we ignore them here
+        const allZero = alivePlayers.every(p => p.coins === 0);
 
         if (allZero && alivePlayers.length > 1) {
             await startNextRound(lobbyId, db);
@@ -256,6 +257,8 @@ async function resolveRPSPhase(lobbyId, db) {
         }
 
         // Assign results and coins
+        // coins = opponents beaten this round (fresh each round — NOT carried over)
+        // weapons (canon, slicer, shields) DO carry over to next round
         const resultUpdates = [];
         for (const { player, wins, losses } of playerResults) {
             let result = 'DRAW';
@@ -268,7 +271,7 @@ async function resolveRPSPhase(lobbyId, db) {
                     update: {
                         $set: {
                             'players.$.rps_result': result,
-                            'players.$.coins': wins  // coins = number of opponents beaten
+                            'players.$.coins': wins   // reset to this round's earnings only
                         }
                     }
                 }
