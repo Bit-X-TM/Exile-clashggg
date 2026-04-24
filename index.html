@@ -87,7 +87,6 @@
         .game-title {
             font-size: clamp(42px, 9vw, 90px); font-weight: 900; color: #fff;
             letter-spacing: clamp(2px, 0.8vw, 8px); text-shadow: 0 6px 20px rgba(0,0,0,0.6);
-            font-stretch: ultra-condensed;
         }
         body.light .game-title { color: #000; text-shadow: 0 6px 20px rgba(255,255,255,0.4); }
         .game-title.exile { letter-spacing: clamp(3px, 1vw, 10px); }
@@ -124,6 +123,7 @@
             font-size: clamp(14px, 2.5vw, 16px); font-weight: 700; color: #fff; cursor: pointer;
             transition: all 0.3s ease; text-shadow: 0 2px 4px rgba(0,0,0,0.3); border: none;
             font-family: 'Poppins', sans-serif; display: flex; align-items: center; justify-content: center; gap: 8px;
+            border-radius: 12px;
         }
         body.light .btn { color: #000; text-shadow: 0 2px 4px rgba(255,255,255,0.3); }
         .btn:hover { transform: translateY(-2px); }
@@ -155,7 +155,7 @@
             position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
             background: rgba(0, 0, 0, 0.9); color: #fff; padding: 12px 24px;
             border-radius: 12px; font-weight: 700; z-index: 2000;
-            animation: slideUp 0.3s ease;
+            animation: slideUp 0.3s ease; max-width: 90vw; text-align: center;
         }
         @keyframes slideUp {
             from { opacity: 0; transform: translate(-50%, 20px); }
@@ -225,12 +225,13 @@
                 <div style="font-size:20px;font-weight:900;text-align:center;" id="lobbyTitle">Lobby</div>
                 <div style="font-size:14px;opacity:0.8;text-align:center;">Code: <span id="lobbyCodeDisplay" style="font-weight:700;letter-spacing:2px;">------</span></div>
                 <div class="lobby-list" id="playersList" style="max-height:150px;"></div>
-                
+
                 <div id="hostControls" class="hidden">
                     <div class="btn-group" style="margin-bottom:12px;">
                         <button class="btn glass" onclick="addBot()" style="font-size:13px;">
                             <i class="fa-solid fa-robot"></i> Add Bot
                         </button>
+                        <!-- FIX: removeBot now calls API to actually remove a bot -->
                         <button class="btn glass" onclick="removeBot()" style="font-size:13px;">
                             <i class="fa-solid fa-user-minus"></i> Remove Bot
                         </button>
@@ -259,8 +260,12 @@
         const PUSHER_KEY = '52d629612765e85a5546';
         const PUSHER_CLUSTER = 'ap2';
         const API = '/api/game';
-        let pusher, globalChannel, gameChannel, playerName = '', userId = localStorage.getItem('exile_uid') || Math.random().toString(36).substring(7);
+        let pusher, globalChannel, gameChannel;
+        let playerName = '';
+        // FIX: generate a more unique userId to avoid collisions
+        let userId = localStorage.getItem('exile_uid') || ('u_' + Math.random().toString(36).substring(2, 15));
         let currentLobby = null, isHost = false;
+        let lobbyPollInterval = null;
         localStorage.setItem('exile_uid', userId);
 
         window.addEventListener('load', function() {
@@ -292,7 +297,7 @@
             toast.className = 'toast';
             toast.textContent = msg;
             document.body.appendChild(toast);
-            setTimeout(() => toast.remove(), 2000);
+            setTimeout(() => toast.remove(), 2500);
         }
 
         async function enterLobby() {
@@ -307,7 +312,9 @@
             document.getElementById('lobbySection').classList.remove('hidden');
             initPusher();
             loadPublicLobbies();
-            setInterval(loadPublicLobbies, 5000);
+            // FIX: clear any previous interval before setting a new one
+            clearInterval(lobbyPollInterval);
+            lobbyPollInterval = setInterval(loadPublicLobbies, 5000);
         }
 
         function initPusher() {
@@ -318,9 +325,15 @@
             });
 
             globalChannel = pusher.subscribe('presence-global');
-            globalChannel.bind('pusher:subscription_succeeded', (m) => document.getElementById('onlineCount').textContent = m.count);
-            globalChannel.bind('pusher:member_added', () => document.getElementById('onlineCount').textContent = globalChannel.members.count);
-            globalChannel.bind('pusher:member_removed', () => document.getElementById('onlineCount').textContent = globalChannel.members.count);
+            globalChannel.bind('pusher:subscription_succeeded', (m) => {
+                document.getElementById('onlineCount').textContent = m.count;
+            });
+            globalChannel.bind('pusher:member_added', () => {
+                document.getElementById('onlineCount').textContent = globalChannel.members.count;
+            });
+            globalChannel.bind('pusher:member_removed', () => {
+                document.getElementById('onlineCount').textContent = globalChannel.members.count;
+            });
             globalChannel.bind('lobby-deleted', (data) => {
                 if (currentLobby === data.lobby_id) {
                     showToast('Lobby deleted by host');
@@ -328,12 +341,13 @@
                 }
                 loadPublicLobbies();
             });
+            globalChannel.bind('lobby-created', () => loadPublicLobbies());
         }
 
         async function createBattle() {
             const lobbyName = document.getElementById('lobbyNameInput').value.trim();
             const isPublic = document.getElementById('isPublic').checked;
-            
+
             if (!lobbyName) {
                 document.getElementById('lobbyError').textContent = 'Please enter a lobby name!';
                 return;
@@ -343,6 +357,7 @@
                 return;
             }
 
+            document.getElementById('lobbyError').textContent = '';
             const res = await fetch(API, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -368,6 +383,7 @@
                 document.getElementById('lobbyError').textContent = 'Enter valid 6-char code!';
                 return;
             }
+            document.getElementById('lobbyError').textContent = '';
             const res = await fetch(API, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -394,7 +410,7 @@
             document.getElementById('lobbyCodeDisplay').textContent = lobbyId;
             document.getElementById('hostControls').classList.toggle('hidden', !host);
             document.getElementById('playerControls').classList.toggle('hidden', host);
-            
+
             if (gameChannel) pusher.unsubscribe(gameChannel.name);
             gameChannel = pusher.subscribe(`game-${lobbyId}`);
             gameChannel.bind('state-update', () => loadLobbyState());
@@ -404,49 +420,58 @@
             gameChannel.bind('host-transferred', (data) => {
                 if (data.new_host === userId) {
                     isHost = true;
-                    showToast('You are now the host');
+                    showToast('You are now the host! 👑');
                     document.getElementById('hostControls').classList.remove('hidden');
                     document.getElementById('playerControls').classList.add('hidden');
                 }
             });
-            
+
             loadLobbyState();
-            setInterval(loadLobbyState, 3000);
+            // FIX: Store interval reference so it can be cleared on leave
+            if (window._statePoll) clearInterval(window._statePoll);
+            window._statePoll = setInterval(loadLobbyState, 3000);
         }
 
         async function loadLobbyState() {
             if (!currentLobby) return;
-            const res = await fetch(API, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ action: 'get_state', lobby_id: currentLobby })
-            });
-            const data = await res.json();
-            if (data.error) {
-                showToast(data.error);
-                leaveLobbyLocal();
-                return;
+            try {
+                const res = await fetch(API, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'get_state', lobby_id: currentLobby })
+                });
+                const data = await res.json();
+                if (data.error) {
+                    showToast(data.error);
+                    leaveLobbyLocal();
+                    return;
+                }
+                const lobby = data.lobby;
+                document.getElementById('lobbyTitle').textContent = lobby.name;
+                isHost = lobby.host_uid === userId;
+                document.getElementById('hostControls').classList.toggle('hidden', !isHost);
+                document.getElementById('playerControls').classList.toggle('hidden', isHost);
+                document.getElementById('startBtn').disabled = lobby.players.length < 2;
+
+                const list = document.getElementById('playersList');
+                list.innerHTML = lobby.players.map(p => `
+                    <div class="lobby-item">
+                        <span>${p.name}
+                            ${p.uid === lobby.host_uid ? '<span class="host-badge">HOST</span>' : ''}
+                            ${p.uid.startsWith('bot_') ? '<span class="bot-badge">BOT</span>' : ''}
+                        </span>
+                    </div>
+                `).join('');
+            } catch (e) {
+                console.error('loadLobbyState error:', e);
             }
-            const lobby = data.lobby;
-            document.getElementById('lobbyTitle').textContent = lobby.name;
-            isHost = lobby.host_uid === userId;
-            document.getElementById('hostControls').classList.toggle('hidden', !isHost);
-            document.getElementById('playerControls').classList.toggle('hidden', isHost);
-            document.getElementById('startBtn').disabled = lobby.players.length < 2;
-            
-            const list = document.getElementById('playersList');
-            list.innerHTML = lobby.players.map(p => `
-                <div class="lobby-item">
-                    <span>${p.name} ${p.uid === lobby.host_uid ? '<span class="host-badge">HOST</span>' : ''} ${p.uid.startsWith('bot_') ? '<span class="bot-badge">BOT</span>' : ''}</span>
-                </div>
-            `).join('');
         }
 
         async function addBot() {
             if (!currentLobby || !isHost) return;
             const botName = 'Bot_' + Math.floor(Math.random() * 1000);
             const botId = 'bot_' + Math.random().toString(36).substring(2, 15);
-            
+
             const res = await fetch(API, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -459,16 +484,30 @@
             });
             const data = await res.json();
             if (data.error) showToast(data.error);
+            else loadLobbyState();
         }
 
+        // FIX: removeBot now calls the real remove_bot API endpoint
         async function removeBot() {
-            showToast('Bots auto-remove when lobby is full or game starts');
+            if (!currentLobby || !isHost) return;
+            const res = await fetch(API, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    action: 'remove_bot',
+                    lobby_id: currentLobby,
+                    uid: userId
+                })
+            });
+            const data = await res.json();
+            if (data.error) showToast(data.error);
+            else loadLobbyState();
         }
 
         async function deleteLobby() {
             if (!currentLobby || !isHost) return;
             if (!confirm('Delete this lobby? All players will be kicked.')) return;
-            
+
             const res = await fetch(API, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -479,7 +518,8 @@
                 })
             });
             const data = await res.json();
-            if (data.error) showToast(data.error);
+            if (data.success) leaveLobbyLocal();
+            else showToast(data.error || 'Failed to delete');
         }
 
         async function startGame() {
@@ -500,7 +540,9 @@
         function leaveLobbyLocal() {
             currentLobby = null;
             isHost = false;
-            if (gameChannel) pusher.unsubscribe(gameChannel.name);
+            // FIX: clear the state polling interval on leave
+            if (window._statePoll) { clearInterval(window._statePoll); window._statePoll = null; }
+            if (gameChannel) { pusher.unsubscribe(gameChannel.name); gameChannel = null; }
             document.getElementById('currentLobbySection').classList.add('hidden');
             document.getElementById('lobbySection').classList.remove('hidden');
         }

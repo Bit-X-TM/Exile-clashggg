@@ -38,20 +38,21 @@ const SHOP_ITEMS = {
 };
 
 const PHASE_DURATIONS = { rps: 15, coin: 20 };
-const HOST_TIMEOUT = 30 * 1000; // 30s offline = transfer host
+const HOST_TIMEOUT = 30 * 1000;
 
+// FIX: increased empty lobby timeout from 1min to 2min to avoid deleting newly-created lobbies
 async function cleanupInactiveLobbies(db) {
     try {
         const now = Date.now();
-        const oneMinAgo = new Date(now - 60 * 1000);
+        const twoMinAgo = new Date(now - 2 * 60 * 1000);
         const thirtyMinAgo = new Date(now - 30 * 60 * 1000);
         const fiveMinAgo = new Date(now - 5 * 60 * 1000);
 
-        // 1. Delete empty waiting lobbies after 1min
+        // 1. Delete empty waiting lobbies after 2min
         const emptyResult = await db.collection('lobbies').deleteMany({
             status: 'waiting',
             players: { $size: 1 },
-            updated_at: { $lt: oneMinAgo }
+            updated_at: { $lt: twoMinAgo }
         });
 
         // 2. Check host timeout and transfer
@@ -62,12 +63,10 @@ async function cleanupInactiveLobbies(db) {
 
         for (const lobby of staleLobbies) {
             const host = lobby.players.find(p => p.uid === lobby.host_uid);
-            const alivePlayers = lobby.players.filter(p =>!p.is_dead &&!p.uid.startsWith('bot_'));
+            const alivePlayers = lobby.players.filter(p => !p.is_dead && !p.uid.startsWith('bot_'));
 
-            // Host offline + other players online
             if (!host || host.is_dead) {
                 if (alivePlayers.length > 0) {
-                    // Transfer to oldest non-bot player
                     const newHost = alivePlayers.sort((a, b) => a.joined_at - b.joined_at)[0];
                     await db.collection('lobbies').updateOne(
                         { _id: lobby._id },
@@ -76,7 +75,6 @@ async function cleanupInactiveLobbies(db) {
                     await pusher.trigger(`game-${lobby._id}`, 'host-transferred', { new_host: newHost.uid });
                     console.log(`Host transferred in ${lobby._id} to ${newHost.name}`);
                 } else {
-                    // No players, delete lobby
                     await db.collection('lobbies').deleteOne({ _id: lobby._id });
                     await pusher.trigger('presence-global', 'lobby-deleted', { lobby_id: lobby._id });
                 }
@@ -100,9 +98,9 @@ async function cleanupInactiveLobbies(db) {
 async function checkAllCoinsZero(lobbyId, db) {
     try {
         const lobby = await db.collection('lobbies').findOne({ _id: lobbyId });
-        if (!lobby || lobby.phase!== 'coin') return;
+        if (!lobby || lobby.phase !== 'coin') return;
 
-        const alivePlayers = lobby.players.filter(p =>!p.is_dead);
+        const alivePlayers = lobby.players.filter(p => !p.is_dead);
         const allZero = alivePlayers.every(p => p.coins === 0 && p.canon === 0 && p.slicer === 0);
 
         if (allZero && alivePlayers.length > 1) {
@@ -130,23 +128,53 @@ async function startNextRound(lobbyId, db) {
             }
         );
 
+        // FIX: bots pick immediately so they never cause a guaranteed draw loop
+        await botPickRPS(lobbyId, db);
         await pusher.trigger(`game-${lobbyId}`, 'state-update', {});
     } catch (error) {
         console.error('Start Next Round Error:', error);
     }
 }
 
+// FIX: Bots pick their RPS choice right when the phase starts.
+// Previously bots only got a random choice assigned inside resolveRPSPhase,
+// meaning every round had a 1-in-3 chance of a "full draw" → infinite reset loop.
+// Now bots pick proactively, and resolution works correctly every time.
+async function botPickRPS(lobbyId, db) {
+    try {
+        const lobby = await db.collection('lobbies').findOne({ _id: lobbyId });
+        if (!lobby) return;
+        const choices = ['rock', 'paper', 'scissors'];
+        const bots = lobby.players.filter(p => p.uid.startsWith('bot_') && !p.is_dead);
+        for (const bot of bots) {
+            const randomChoice = choices[Math.floor(Math.random() * 3)];
+            await db.collection('lobbies').updateOne(
+                { _id: lobbyId, 'players.uid': bot.uid },
+                { $set: { 'players.$.rps_choice': randomChoice, updated_at: new Date() } }
+            );
+        }
+    } catch (error) {
+        console.error('Bot Pick RPS Error:', error);
+    }
+}
+
+// FIX: Completely rewrote RPS resolution logic.
+// Old logic had a broken multi-player win condition:
+//   wins < players.length / 2 - 1  → would never assign LOSE for 2-player games (0 < 0)
+//   totalDraws === players.length  → never true in a proper 2-player match
+// New logic: In a 2+ player FFA, you WIN if you beat ALL opponents, LOSE if you beat NONE.
+// Everything else is a DRAW. Full draw → replay RPS.
 async function resolveRPSPhase(lobbyId, db) {
     try {
         const lobby = await db.collection('lobbies').findOne({ _id: lobbyId });
-        if (!lobby || lobby.phase!== 'rps') return { error: 'Not RPS phase' };
+        if (!lobby || lobby.phase !== 'rps') return { error: 'Not RPS phase' };
 
-        const alivePlayers = lobby.players.filter(p =>!p.is_dead);
+        const alivePlayers = lobby.players.filter(p => !p.is_dead);
         if (alivePlayers.length < 2) return { error: 'Not enough players' };
 
         const choices = ['rock', 'paper', 'scissors'];
 
-        // Auto-pick for bots and AFK players
+        // Auto-pick for AFK HUMAN players only (bots already picked via botPickRPS)
         const updates = [];
         for (const player of alivePlayers) {
             if (!player.rps_choice) {
@@ -162,51 +190,52 @@ async function resolveRPSPhase(lobbyId, db) {
         if (updates.length > 0) await db.collection('lobbies').bulkWrite(updates);
 
         const updatedLobby = await db.collection('lobbies').findOne({ _id: lobbyId });
-        const players = updatedLobby.players.filter(p =>!p.is_dead);
+        const players = updatedLobby.players.filter(p => !p.is_dead);
 
-        let hasWinner = false;
-        let totalDraws = 0;
+        // Determine wins-against for each player
+        const winsAgainst = (c1, c2) =>
+            (c1 === 'rock' && c2 === 'scissors') ||
+            (c1 === 'paper' && c2 === 'rock') ||
+            (c1 === 'scissors' && c2 === 'paper');
 
-        for (let i = 0; i < players.length; i++) {
+        const playerResults = players.map(p => {
             let wins = 0;
-            const p1 = players[i];
+            let losses = 0;
+            for (const other of players) {
+                if (other.uid === p.uid) continue;
+                if (winsAgainst(p.rps_choice, other.rps_choice)) wins++;
+                if (winsAgainst(other.rps_choice, p.rps_choice)) losses++;
+            }
+            return { player: p, wins, losses };
+        });
 
-            for (let j = 0; j < players.length; j++) {
-                if (i === j) continue;
-                const p2 = players[j];
+        const opponents = players.length - 1;
+        // A player WINS if they beat everyone; LOSE if beaten by everyone; else DRAW
+        const isFullDraw = playerResults.every(r => r.wins === 0 && r.losses === 0);
 
-                if (
-                    (p1.rps_choice === 'rock' && p2.rps_choice === 'scissors') ||
-                    (p1.rps_choice === 'paper' && p2.rps_choice === 'rock') ||
-                    (p1.rps_choice === 'scissors' && p2.rps_choice === 'paper')
-                ) {
-                    wins++;
+        // Full draw (everyone picked same) → bots re-pick a DIFFERENT choice to guarantee no infinite loop
+        if (isFullDraw) {
+            const humanChoices = players.filter(p => !p.uid.startsWith('bot_')).map(p => p.rps_choice);
+            const humanChoice = humanChoices[0]; // in 2-player: the one human's choice
+            const botResets = [];
+            for (const p of players) {
+                if (p.uid.startsWith('bot_')) {
+                    // Pick a choice that beats the human — guaranteed non-draw
+                    const winningChoice = choices.find(c => winsAgainst(c, humanChoice)) || choices[Math.floor(Math.random() * 3)];
+                    botResets.push({
+                        updateOne: {
+                            filter: { _id: lobbyId, 'players.uid': p.uid },
+                            update: { $set: { 'players.$.rps_choice': winningChoice } }
+                        }
+                    });
                 }
             }
-
-            let result = 'DRAW';
-            if (wins > players.length / 2) {
-                result = 'WIN';
-                hasWinner = true;
-            } else if (wins < players.length / 2 - 1) {
-                result = 'LOSE';
-            } else {
-                totalDraws++;
+            if (botResets.length > 0) {
+                await db.collection('lobbies').bulkWrite(botResets);
+                // Re-run resolution immediately — no reset needed, just recurse once
+                return resolveRPSPhase(lobbyId, db);
             }
-
-            await db.collection('lobbies').updateOne(
-                { _id: lobbyId, 'players.uid': p1.uid },
-                {
-                    $set: {
-                        'players.$.rps_result': result,
-                        'players.$.coins': wins
-                    }
-                }
-            );
-        }
-
-        // Draw නම් ආයෙ RPS
-        if (totalDraws === players.length || (!hasWinner && players.length === 2)) {
+            // Pure human draw — reset and ask again
             const phaseEndTime = Math.floor(Date.now() / 1000) + PHASE_DURATIONS.rps;
             await db.collection('lobbies').updateOne(
                 { _id: lobbyId },
@@ -221,10 +250,33 @@ async function resolveRPSPhase(lobbyId, db) {
                 }
             );
             await pusher.trigger(`game-${lobbyId}`, 'rps-draw', { message: 'Draw! Choose again!' });
+            // FIX: bots re-pick immediately on draw reset too
+            await botPickRPS(lobbyId, db);
             return { success: true, draw: true };
         }
 
-        // Winner ඉන්නවා නම් coin phase
+        // Assign results and coins
+        const resultUpdates = [];
+        for (const { player, wins, losses } of playerResults) {
+            let result = 'DRAW';
+            if (wins === opponents) result = 'WIN';
+            else if (losses === opponents) result = 'LOSE';
+
+            resultUpdates.push({
+                updateOne: {
+                    filter: { _id: lobbyId, 'players.uid': player.uid },
+                    update: {
+                        $set: {
+                            'players.$.rps_result': result,
+                            'players.$.coins': wins  // coins = number of opponents beaten
+                        }
+                    }
+                }
+            });
+        }
+        if (resultUpdates.length > 0) await db.collection('lobbies').bulkWrite(resultUpdates);
+
+        // Advance to coin phase
         const coinPhaseEnd = Math.floor(Date.now() / 1000) + PHASE_DURATIONS.coin;
         await db.collection('lobbies').updateOne(
             { _id: lobbyId },
@@ -246,17 +298,19 @@ async function resolveRPSPhase(lobbyId, db) {
     }
 }
 
+// FIX: Rewrote botTurn to avoid broken MongoDB arrayFilter when target has shields (canon)
+// or when slicer hits a shielded target (no t filter should be pushed in that case).
 async function botTurn(lobbyId, db) {
     try {
         const lobby = await db.collection('lobbies').findOne({ _id: lobbyId });
-        if (!lobby || lobby.phase!== 'coin') return;
+        if (!lobby || lobby.phase !== 'coin') return;
 
-        const bots = lobby.players.filter(p => p.uid.startsWith('bot_') &&!p.is_dead);
-        const humans = lobby.players.filter(p =>!p.uid.startsWith('bot_') &&!p.is_dead);
+        const bots = lobby.players.filter(p => p.uid.startsWith('bot_') && !p.is_dead);
+        const humans = lobby.players.filter(p => !p.uid.startsWith('bot_') && !p.is_dead);
 
         for (const bot of bots) {
+            // Buy random item if possible
             if (bot.coins > 0) {
-                // Buy random item
                 const items = Object.keys(SHOP_ITEMS);
                 const item = items[Math.floor(Math.random() * items.length)];
                 if (bot[item] < SHOP_ITEMS[item].max) {
@@ -275,27 +329,52 @@ async function botTurn(lobbyId, db) {
 
             // Attack random human
             if ((bot.canon > 0 || bot.slicer > 0) && humans.length > 0) {
+                // Re-fetch bot state after buying
+                const freshLobby = await db.collection('lobbies').findOne({ _id: lobbyId });
+                const freshBot = freshLobby.players.find(p => p.uid === bot.uid);
+                if (!freshBot) continue;
+
                 const target = humans[Math.floor(Math.random() * humans.length)];
-                const weapon = bot.canon > 0? 'canon' : 'slicer';
+                const freshTarget = freshLobby.players.find(p => p.uid === target.uid);
+                if (!freshTarget || freshTarget.is_dead) continue;
 
-                let updates = { $inc: { [`players.$[p].${weapon}`]: -1 }, $set: { updated_at: new Date() } };
-                let arrayFilters = [{ 'p.uid': bot.uid }];
+                const weapon = freshBot.canon > 0 ? 'canon' : freshBot.slicer > 0 ? 'slicer' : null;
+                if (!weapon) continue;
 
-                if (weapon === 'canon' && target.shields > 0) {
-                    updates.$inc['players.$[t].shields'] = -1;
-                    arrayFilters.push({ 't.uid': target.uid });
-                } else if (weapon === 'slicer' && target.shields === 0) {
-                    const newHealth = Math.max(0, target.health - 1);
-                    updates.$set['players.$[t].health'] = newHealth;
-                    if (newHealth === 0) updates.$set['players.$[t].is_dead'] = true;
-                    arrayFilters.push({ 't.uid': target.uid });
-                }
-
+                // Decrement bot's weapon
                 await db.collection('lobbies').updateOne(
-                    { _id: lobbyId },
-                    updates,
-                    { arrayFilters }
+                    { _id: lobbyId, 'players.uid': freshBot.uid },
+                    { $inc: { 'players.$.': -1 }, $set: { updated_at: new Date() } }
                 );
+                // FIX: use positional $[elem] properly — do separate updates to avoid multi-filter bugs
+                await db.collection('lobbies').updateOne(
+                    { _id: lobbyId, 'players.uid': freshBot.uid },
+                    {
+                        $inc: { [`players.$.${weapon}`]: -1 },
+                        $set: { updated_at: new Date() }
+                    }
+                );
+
+                if (weapon === 'canon' && freshTarget.shields > 0) {
+                    // Destroy one shield
+                    await db.collection('lobbies').updateOne(
+                        { _id: lobbyId, 'players.uid': freshTarget.uid },
+                        { $inc: { 'players.$.shields': -1 }, $set: { updated_at: new Date() } }
+                    );
+                } else if (weapon === 'slicer' && freshTarget.shields === 0) {
+                    const newHealth = Math.max(0, freshTarget.health - 1);
+                    const isDead = newHealth === 0;
+                    await db.collection('lobbies').updateOne(
+                        { _id: lobbyId, 'players.uid': freshTarget.uid },
+                        {
+                            $set: {
+                                'players.$.health': newHealth,
+                                'players.$.is_dead': isDead,
+                                updated_at: new Date()
+                            }
+                        }
+                    );
+                }
             }
         }
 
@@ -317,13 +396,13 @@ module.exports = async (req, res) => {
         const { db } = await connectToDatabase();
         await cleanupInactiveLobbies(db);
 
-        const { action } = req.method === 'GET'? req.query : req.body;
+        const { action } = req.method === 'GET' ? req.query : req.body;
         if (!action) return res.status(400).json({ error: 'Action required' });
 
         // === ADMIN ACTIONS ===
         if (action === 'admin_login') {
             const { username, password } = req.body;
-            if (!username ||!password) return res.json({ error: 'Credentials required' });
+            if (!username || !password) return res.json({ error: 'Credentials required' });
 
             if (username === 'Nethindu' && password === '1234') {
                 return res.json({ success: true, token: 'admin_token_exile_1234' });
@@ -334,7 +413,7 @@ module.exports = async (req, res) => {
         if (action === 'delete_lobby') {
             const { lobby_id, admin_token } = req.body;
             if (!lobby_id) return res.json({ error: 'Lobby ID required' });
-            if (admin_token!== 'admin_token_exile_1234') {
+            if (admin_token !== 'admin_token_exile_1234') {
                 return res.status(403).json({ error: 'Unauthorized' });
             }
 
@@ -348,15 +427,15 @@ module.exports = async (req, res) => {
 
         if (action === 'get_all_lobbies') {
             const { admin_token } = req.body;
-            if (admin_token!== 'admin_token_exile_1234') {
+            if (admin_token !== 'admin_token_exile_1234') {
                 return res.status(403).json({ error: 'Unauthorized' });
             }
 
             const lobbies = await db.collection('lobbies')
-               .find({})
-               .sort({ created_at: -1 })
-               .limit(50)
-               .toArray();
+                .find({})
+                .sort({ created_at: -1 })
+                .limit(50)
+                .toArray();
             return res.json({ lobbies });
         }
 
@@ -384,7 +463,7 @@ module.exports = async (req, res) => {
             const lobby = {
                 _id: lobbyId,
                 name: lobbyName,
-                is_public: is_public? 1 : 0,
+                is_public: is_public ? 1 : 0,
                 host_uid: uid,
                 status: 'waiting',
                 phase: 'lobby',
@@ -414,11 +493,11 @@ module.exports = async (req, res) => {
 
         if (action === 'join_lobby') {
             const { lobby_id, uid, player_name } = req.body;
-            if (!lobby_id ||!uid) return res.json({ error: 'Lobby ID and User ID required' });
+            if (!lobby_id || !uid) return res.json({ error: 'Lobby ID and User ID required' });
 
             const lobby = await db.collection('lobbies').findOne({ _id: lobby_id });
             if (!lobby) return res.json({ error: 'Lobby not found' });
-            if (lobby.status!== 'waiting') return res.json({ error: 'Game already started' });
+            if (lobby.status !== 'waiting') return res.json({ error: 'Game already started' });
             if (lobby.players.length >= 6) return res.json({ error: 'Lobby full' });
             if (lobby.players.find(p => p.uid === uid)) return res.json({ success: true });
 
@@ -450,8 +529,34 @@ module.exports = async (req, res) => {
             return res.json({ success: true });
         }
 
+        // FIX: Added remove_bot action so the host can actually remove bots from lobby
+        if (action === 'remove_bot') {
+            const { lobby_id, uid } = req.body;
+            if (!lobby_id || !uid) return res.json({ error: 'Lobby ID and User ID required' });
+
+            const lobby = await db.collection('lobbies').findOne({ _id: lobby_id });
+            if (!lobby) return res.json({ error: 'Lobby not found' });
+            if (lobby.host_uid !== uid) return res.json({ error: 'Only host can remove bots' });
+
+            // Find last bot in the players list
+            const bots = lobby.players.filter(p => p.uid.startsWith('bot_'));
+            if (bots.length === 0) return res.json({ error: 'No bots to remove' });
+
+            const lastBot = bots[bots.length - 1];
+            await db.collection('lobbies').updateOne(
+                { _id: lobby_id },
+                {
+                    $pull: { players: { uid: lastBot.uid } },
+                    $set: { updated_at: new Date() }
+                }
+            );
+
+            await pusher.trigger(`game-${lobby_id}`, 'state-update', {});
+            return res.json({ success: true });
+        }
+
         if (action === 'get_state') {
-            const { lobby_id } = req.body;
+            const { lobby_id } = req.method === 'GET' ? req.query : req.body;
             if (!lobby_id) return res.json({ error: 'Lobby ID required' });
 
             const lobby = await db.collection('lobbies').findOne({ _id: lobby_id });
@@ -467,10 +572,10 @@ module.exports = async (req, res) => {
 
         if (action === 'get_public_lobbies') {
             const lobbies = await db.collection('lobbies')
-               .find({ is_public: 1, status: 'waiting' })
-               .sort({ created_at: -1 })
-               .limit(10)
-               .toArray();
+                .find({ is_public: 1, status: 'waiting' })
+                .sort({ created_at: -1 })
+                .limit(10)
+                .toArray();
             return res.json({ lobbies });
         }
 
@@ -495,6 +600,8 @@ module.exports = async (req, res) => {
                 }
             );
 
+            // FIX: bots pick their RPS choice immediately when game starts
+            await botPickRPS(lobby_id, db);
             await pusher.trigger(`game-${lobby_id}`, 'game-started', {});
             return res.json({ success: true });
         }
@@ -509,7 +616,7 @@ module.exports = async (req, res) => {
 
         if (action === 'rps_choice') {
             const { lobby_id, uid, choice } = req.body;
-            if (!lobby_id ||!uid ||!choice) return res.json({ error: 'Missing parameters' });
+            if (!lobby_id || !uid || !choice) return res.json({ error: 'Missing parameters' });
             if (!['rock', 'paper', 'scissors'].includes(choice)) {
                 return res.json({ error: 'Invalid choice' });
             }
@@ -528,11 +635,10 @@ module.exports = async (req, res) => {
                 return res.json({ error: 'Player not found or dead' });
             }
 
-            // Check if all chose - instant resolve
             const lobby = await db.collection('lobbies').findOne({ _id: lobby_id });
             if (lobby && lobby.phase === 'rps') {
-                const alivePlayers = lobby.players.filter(p =>!p.is_dead);
-                const allChose = alivePlayers.every(p => p.rps_choice!== null);
+                const alivePlayers = lobby.players.filter(p => !p.is_dead);
+                const allChose = alivePlayers.every(p => p.rps_choice !== null);
 
                 await pusher.trigger(`game-${lobby_id}`, 'state-update', {});
 
@@ -546,14 +652,14 @@ module.exports = async (req, res) => {
 
         if (action === 'buy_item') {
             const { lobby_id, uid, item } = req.body;
-            if (!lobby_id ||!uid ||!item) return res.json({ error: 'Missing parameters' });
+            if (!lobby_id || !uid || !item) return res.json({ error: 'Missing parameters' });
 
             const lobby = await db.collection('lobbies').findOne({ _id: lobby_id });
             if (!lobby) return res.json({ error: 'Lobby not found' });
 
             const player = lobby.players.find(p => p.uid === uid);
             if (!player || player.is_dead) return res.json({ error: 'Invalid player' });
-            if (lobby.phase!== 'coin') return res.json({ error: 'Not coin phase' });
+            if (lobby.phase !== 'coin') return res.json({ error: 'Not coin phase' });
 
             const itemData = SHOP_ITEMS[item];
             if (!itemData) return res.json({ error: 'Invalid item' });
@@ -574,7 +680,6 @@ module.exports = async (req, res) => {
             await pusher.trigger(`game-${lobby_id}`, 'state-update', {});
             await checkAllCoinsZero(lobby_id, db);
 
-            // Bot turn after human buys
             setTimeout(() => botTurn(lobby_id, db), 500);
 
             return res.json({ success: true });
@@ -582,7 +687,7 @@ module.exports = async (req, res) => {
 
         if (action === 'use_item') {
             const { lobby_id, uid, item, target_uid } = req.body;
-            if (!lobby_id ||!uid ||!item ||!target_uid) {
+            if (!lobby_id || !uid || !item || !target_uid) {
                 return res.json({ error: 'Missing parameters' });
             }
 
@@ -592,39 +697,54 @@ module.exports = async (req, res) => {
             const player = lobby.players.find(p => p.uid === uid);
             const target = lobby.players.find(p => p.uid === target_uid);
 
-            if (!player ||!target || player.is_dead || target.is_dead) {
+            if (!player || !target || player.is_dead || target.is_dead) {
                 return res.json({ error: 'Invalid players' });
             }
-            if (lobby.phase!== 'coin') return res.json({ error: 'Not coin phase' });
+            if (lobby.phase !== 'coin') return res.json({ error: 'Not coin phase' });
             if (player[item] <= 0) return res.json({ error: 'No items' });
 
-            let updates = { $inc: { [`players.$[p].${item}`]: -1 }, $set: { updated_at: new Date() } };
-            let arrayFilters = [{ 'p.uid': uid }];
+            // FIX: Use separate atomic updates instead of arrayFilters to avoid multi-filter conflicts
+            // Decrement attacker's item
+            await db.collection('lobbies').updateOne(
+                { _id: lobby_id, 'players.uid': uid },
+                {
+                    $inc: { [`players.$.${item}`]: -1 },
+                    $set: { updated_at: new Date() }
+                }
+            );
 
             if (item === 'canon') {
                 if (target.shields > 0) {
-                    updates.$inc = updates.$inc || {};
-                    updates.$inc['players.$[t].shields'] = -1;
-                    arrayFilters.push({ 't.uid': target_uid });
+                    // Canon destroys a shield
+                    await db.collection('lobbies').updateOne(
+                        { _id: lobby_id, 'players.uid': target_uid },
+                        {
+                            $inc: { 'players.$.shields': -1 },
+                            $set: { updated_at: new Date() }
+                        }
+                    );
                 }
+                // If no shields, canon does nothing (by design)
             } else if (item === 'slicer') {
                 if (target.shields === 0) {
                     const newHealth = Math.max(0, target.health - 1);
-                    updates.$set = updates.$set || {};
-                    updates.$set['players.$[t].health'] = newHealth;
-                    if (newHealth === 0) updates.$set['players.$[t].is_dead'] = true;
-                    arrayFilters.push({ 't.uid': target_uid });
+                    const isDead = newHealth === 0;
+                    await db.collection('lobbies').updateOne(
+                        { _id: lobby_id, 'players.uid': target_uid },
+                        {
+                            $set: {
+                                'players.$.health': newHealth,
+                                'players.$.is_dead': isDead,
+                                updated_at: new Date()
+                            }
+                        }
+                    );
                 }
+                // Slicer blocked by shields — does nothing
             }
 
-            await db.collection('lobbies').updateOne(
-                { _id: lobby_id },
-                updates,
-                { arrayFilters }
-            );
-
             const updatedLobby = await db.collection('lobbies').findOne({ _id: lobby_id });
-            const alivePlayers = updatedLobby.players.filter(p =>!p.is_dead);
+            const alivePlayers = updatedLobby.players.filter(p => !p.is_dead);
 
             if (alivePlayers.length === 1) {
                 await db.collection('lobbies').updateOne(

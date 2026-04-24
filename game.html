@@ -28,7 +28,6 @@
             body.light { background-image: url('img/bg/lightp.png'); }
         }
 
-        /* FIX: rgba had only 3 values — missing alpha channel fixed throughout */
         .glass {
             background: rgba(0, 0, 0, 0.25);
             border-radius: 16px;
@@ -37,8 +36,8 @@
             -webkit-backdrop-filter: blur(3.7px);
             border: 1px solid rgba(255, 255, 255, 0.08);
         }
+        /* FIX: was rgba(255, 255, 0.17) — only 3 values, missing alpha */
         body.light .glass {
-            /* FIX: was rgba(255, 255, 0.17) — malformed, fixed to proper light glass */
             background: rgba(255, 255, 255, 0.17);
             border: 1px solid rgba(255, 255, 255, 0.25);
             box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
@@ -47,40 +46,35 @@
         .top-bar {
             position: fixed; top: 20px; left: 20px; right: 20px; height: 70px;
             display: flex; justify-content: space-between; align-items: center;
-            padding: 0 24px; z-index: 100;
+            padding: 0 24px; z-index: 100; gap: 12px;
         }
-        /* FIX: top-bar responsive — collapse gracefully on small screens */
-        @media (max-width: 480px) {
-            .top-bar {
-                top: 10px; left: 10px; right: 10px;
-                height: auto; padding: 10px 16px;
-                flex-wrap: wrap; gap: 6px;
-            }
+        @media (max-width: 600px) {
+            .top-bar { top: 10px; left: 10px; right: 10px; height: auto; padding: 10px 16px; flex-wrap: wrap; gap: 6px; }
         }
 
         .lobby-info { display: flex; flex-direction: column; gap: 4px; }
-        .lobby-name {
-            font-size: clamp(16px, 3vw, 22px); font-weight: 900;
-            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
-        }
+        .lobby-name { font-size: clamp(16px, 3vw, 22px); font-weight: 900; text-shadow: 0 2px 4px rgba(0,0,0,0.3); }
         body.light .lobby-name { text-shadow: 0 2px 4px rgba(255,255,255,0.3); }
         .lobby-code { font-size: clamp(11px, 2vw, 14px); opacity: 0.7; }
 
-        .phase-info { text-align: right; }
-        .phase-name {
-            font-size: clamp(13px, 2.5vw, 18px); font-weight: 700;
-            color: #4fc3f7; text-shadow: 0 2px 8px rgba(79,195,247,0.5);
+        .theme-btn {
+            color: #fff; padding: 8px 14px; border-radius: 12px; cursor: pointer;
+            font-size: clamp(11px, 2vw, 14px); transition: all 0.3s ease;
+            border: none; font-family: 'Poppins', sans-serif; font-weight: 700;
+            white-space: nowrap;
         }
+        body.light .theme-btn { color: #000; }
+        .theme-btn:hover { transform: translateY(-1px); }
+
+        .phase-info { text-align: right; }
+        .phase-name { font-size: clamp(13px, 2.5vw, 18px); font-weight: 700; color: #4fc3f7; text-shadow: 0 2px 8px rgba(79,195,247,0.5); }
         .timer { font-size: clamp(22px, 4vw, 32px); font-weight: 900; margin-top: 4px; }
 
-        /* FIX: game-area top adjusted for small screens */
         .game-area {
             position: fixed; top: 110px; left: 20px; right: 20px; bottom: 20px;
             padding: clamp(15px, 3vw, 25px); overflow-y: auto;
         }
-        @media (max-width: 480px) {
-            .game-area { top: 100px; left: 10px; right: 10px; bottom: 10px; }
-        }
+        @media (max-width: 480px) { .game-area { top: 100px; left: 10px; right: 10px; bottom: 10px; } }
 
         .players-grid {
             display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
@@ -89,18 +83,16 @@
         @media (max-width: 768px) { .players-grid { grid-template-columns: repeat(2, 1fr); } }
         @media (max-width: 400px)  { .players-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; } }
 
+        /* FIX: was rgba(255, 255, 0.05) — 3-value rgba */
         .player-card {
-            /* FIX: was rgba(255, 255, 0.05) — malformed (only 3 values), fixed */
             background: rgba(255, 255, 255, 0.05);
             backdrop-filter: blur(20px);
             border: 2px solid rgba(255, 255, 255, 0.1); border-radius: 16px;
             padding: 15px; text-align: center; transition: all 0.3s; position: relative;
             height: 260px; display: flex; flex-direction: column;
         }
-        @media (max-width: 400px) {
-            .player-card { height: 220px; padding: 10px; }
-        }
-        /* FIX: box-shadow was "0 25px rgba(...)" — missing blur radius, fixed */
+        @media (max-width: 400px) { .player-card { height: 220px; padding: 10px; } }
+        /* FIX: box-shadow was "0 25px rgba(...)" — missing blur radius */
         .player-card.you { border-color: #4fc3f7; box-shadow: 0 0 25px rgba(79, 195, 247, 0.4); }
         .player-card.dead { opacity: 0.3; filter: grayscale(1); }
         .player-card.bot { border-color: #ff9800; }
@@ -115,13 +107,10 @@
         .island-wrapper { width: 100px; height: 100px; margin: 0 auto 10px; position: relative; flex-shrink: 0; }
         @media (max-width: 400px) { .island-wrapper { width: 75px; height: 75px; } }
 
-        /* FIX: island-img needs display:block so it fills wrapper properly */
         .island-img {
             display: block;
             width: 100%; height: 100%;
-            background-size: contain;
-            background-repeat: no-repeat;
-            background-position: center;
+            background-size: contain; background-repeat: no-repeat; background-position: center;
             position: relative;
         }
         .island-damage {
@@ -148,9 +137,9 @@
             border: 2px solid #fff; box-shadow: 0 2px 6px rgba(79,195,247,0.5);
         }
 
+        /* FIX: was rgba(0, 0, 0.9) — 3-value rgba */
         .rps-result {
             position: absolute; top: -12px; left: 50%; transform: translateX(-50%);
-            /* FIX: was rgba(0, 0, 0.9) — 3-value rgba, fixed */
             background: rgba(0, 0, 0, 0.9);
             padding: 4px 12px; border-radius: 8px;
             font-size: clamp(10px, 1.8vw, 12px); font-weight: 700; white-space: nowrap;
@@ -178,7 +167,7 @@
             display: flex; flex-direction: column; align-items: center; justify-content: center;
             gap: 8px; font-size: clamp(1.8rem, 5vw, 3rem); color: #fff;
         }
-        .rps-btn:hover { background: rgba(255, 255, 255, 0.15); border-color: #4fc3f7; transform: scale(1.1); }
+        .rps-btn:hover:not(:disabled) { background: rgba(255, 255, 255, 0.15); border-color: #4fc3f7; transform: scale(1.1); }
         .rps-btn.selected { background: linear-gradient(135deg, #4fc3f7, #2196f3); border-color: transparent; }
         .rps-btn:disabled { opacity: 0.3; cursor: not-allowed; transform: none !important; }
         .rps-label { font-size: clamp(11px, 2vw, 14px); font-weight: 700; }
@@ -189,7 +178,6 @@
         }
         @media (max-width: 480px) { .shop { grid-template-columns: repeat(3, 1fr); gap: 10px; } }
 
-        /* FIX: shop-item is a <button> — :disabled pseudo works, remove invalid property */
         .shop-item {
             background: rgba(255, 255, 255, 0.08); border: 2px solid rgba(255, 255, 255, 0.15);
             border-radius: 16px; padding: clamp(12px, 2.5vw, 20px); text-align: center;
@@ -251,7 +239,6 @@
             background: rgba(255, 255, 255, 0.1); backdrop-filter: blur(20px);
             border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 24px;
             padding: clamp(25px, 5vw, 40px); text-align: center;
-            /* FIX: added width:100% + max-width so it's responsive on mobile */
             width: 100%; max-width: 400px;
         }
         .modal h2 { font-size: clamp(22px, 4vw, 32px); margin-bottom: 20px; }
@@ -259,8 +246,7 @@
             font-size: clamp(26px, 5vw, 40px); font-weight: 900;
             background: linear-gradient(90deg, #4fc3f7, #2196f3);
             -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-            background-clip: text;
-            margin: 20px 0;
+            background-clip: text; margin: 20px 0;
         }
 
         .target-hint {
@@ -276,8 +262,7 @@
             position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
             background: rgba(255, 152, 0, 0.95); color: #fff; padding: 20px 40px;
             border-radius: 16px; font-size: clamp(18px, 4vw, 24px); font-weight: 900;
-            z-index: 2000; animation: slideIn 0.3s ease;
-            white-space: nowrap;
+            z-index: 2000; animation: slideIn 0.3s ease; white-space: nowrap;
         }
         @keyframes slideIn {
             from { opacity: 0; transform: translate(-50%, -60%); }
@@ -295,7 +280,6 @@
             to   { opacity: 1; transform: translate(-50%, 0); }
         }
 
-        /* Light mode text adjustments */
         body.light .phase-name  { text-shadow: 0 2px 8px rgba(0,150,200,0.3); }
         body.light .player-card { background: rgba(255, 255, 255, 0.15); border-color: rgba(0,0,0,0.1); }
         body.light .game-panel  { background: rgba(255, 255, 255, 0.2); }
@@ -316,6 +300,7 @@
             <div class="phase-name" id="phase-name">Waiting...</div>
             <div class="timer" id="timer">--</div>
         </div>
+        <button class="theme-btn glass" id="theme-btn" onclick="toggleTheme()"><i class="fa-solid fa-sun"></i> Theme</button>
     </div>
 
     <div class="game-area">
@@ -355,7 +340,6 @@
                 <button class="btn" id="start-btn" onclick="startGame()">
                     <i class="fa-solid fa-play"></i> Start Game
                 </button>
-                <!-- FIX: next-round-btn visible state managed in JS; inline style="display:none" retained -->
                 <button class="btn btn-secondary" id="next-round-btn" onclick="nextRound()" style="display: none;">
                     <i class="fa-solid fa-forward"></i> Next Round
                 </button>
@@ -386,16 +370,33 @@
         let channel = null;
         let timerInterval = null;
         let targetMode = null;
+        // FIX: track if game over modal is showing so we don't redirect mid-celebration
+        let gameOverShown = false;
 
         if (!lobbyId || !userId) {
-            alert('Invalid game');
+            alert('Invalid game session. Returning to lobby.');
             location.href = '/';
         }
 
         document.getElementById('lobby-code').textContent = lobbyId;
 
+        function toggleTheme() {
+            document.body.classList.toggle('light');
+            const btn = document.getElementById('theme-btn');
+            if (document.body.classList.contains('light')) {
+                btn.innerHTML = '<i class="fa-solid fa-moon"></i> Theme';
+                localStorage.setItem('theme', 'light');
+            } else {
+                btn.innerHTML = '<i class="fa-solid fa-sun"></i> Theme';
+                localStorage.setItem('theme', 'dark');
+            }
+        }
+
         const savedTheme = localStorage.getItem('theme');
-        if (savedTheme === 'light') document.body.classList.add('light');
+        if (savedTheme === 'light') {
+            document.body.classList.add('light');
+            document.getElementById('theme-btn').innerHTML = '<i class="fa-solid fa-moon"></i> Theme';
+        }
 
         pusher = new Pusher('52d629612765e85a5546', {
             cluster: 'ap2',
@@ -404,17 +405,19 @@
         });
 
         channel = pusher.subscribe(`game-${lobbyId}`);
-        channel.bind('state-update', () => loadGameState());
-        channel.bind('game-started', () => loadGameState());
-        channel.bind('rps-resolved', () => loadGameState());
+        channel.bind('state-update', () => { if (!gameOverShown) loadGameState(); });
+        channel.bind('game-started', () => { if (!gameOverShown) loadGameState(); });
+        channel.bind('rps-resolved', () => { if (!gameOverShown) loadGameState(); });
         channel.bind('rps-draw', (data) => {
-            showToast(data.message);
-            loadGameState();
+            showToast(data.message || 'Draw! Choose again!');
+            if (!gameOverShown) loadGameState();
         });
-        channel.bind('host-transferred', (data) => {
+        channel.bind('host-transferred', () => {
             showToast('Host transferred to new player');
-            loadGameState();
+            if (!gameOverShown) loadGameState();
         });
+        // FIX: game-ended no longer also calls loadGameState — that caused a redirect
+        // if the state was fetched after the lobby was marked finished and cleaned up
         channel.bind('game-ended', (data) => showGameOver(data.winner));
 
         async function apiCall(action, data = {}) {
@@ -432,13 +435,23 @@
         }
 
         async function loadGameState() {
+            if (gameOverShown) return;
             const res = await apiCall('get_state');
             if (res.error) {
-                alert(res.error);
-                location.href = '/';
+                // FIX: don't alert + redirect if game-over modal is already shown
+                if (!gameOverShown) {
+                    showToast(res.error);
+                    setTimeout(() => { if (!gameOverShown) location.href = '/'; }, 2000);
+                }
                 return;
             }
             gameState = res.lobby;
+            // If server says finished but we didn't get game-ended event, show modal
+            if (gameState.phase === 'finished' && !gameOverShown) {
+                const alivePlayers = gameState.players.filter(p => !p.is_dead);
+                showGameOver(alivePlayers[0] || null);
+                return;
+            }
             renderGame();
         }
 
@@ -453,12 +466,11 @@
 
         function renderPlayers() {
             const grid = document.getElementById('players-grid');
-            const me = gameState.players.find(p => p.uid === userId);
 
             grid.innerHTML = gameState.players.map(p => {
                 const isYou = p.uid === userId;
                 const isDead = p.is_dead;
-                const isHost = p.uid === gameState.host_uid;
+                const isHostPlayer = p.uid === gameState.host_uid;
                 const isBot = p.uid.startsWith('bot_');
                 const health = Math.max(0, p.health);
                 const damageClass = health < 4 ? `damage-${4 - health}` : '';
@@ -470,9 +482,12 @@
                                   p.rps_result === 'LOSE' ? 'result-lose' : 'result-draw';
                 }
 
+                // FIX: targetable only applies during coin phase, not RPS
+                const isTargetable = targetMode && !isDead && !isYou && gameState.phase === 'coin';
+
                 return `
-                    <div class="player-card ${isYou ? 'you' : ''} ${isDead ? 'dead' : ''} ${isBot ? 'bot' : ''} ${targetMode && !isDead && !isYou ? 'targetable' : ''}"
-                         onclick="${targetMode && !isDead && !isYou ? `useItemOn('${p.uid}')` : ''}">
+                    <div class="player-card ${isYou ? 'you' : ''} ${isDead ? 'dead' : ''} ${isBot ? 'bot' : ''} ${isTargetable ? 'targetable' : ''}"
+                         ${isTargetable ? `onclick="useItemOn('${p.uid}')"` : ''}>
                         ${p.rps_result ? `<div class="rps-result ${resultClass}">${p.rps_result}</div>` : ''}
                         <div class="shields">${shieldsHtml}</div>
                         <div class="island-wrapper">
@@ -481,12 +496,13 @@
                             </div>
                         </div>
                         <div class="player-info">
-                            <div class="player-name">${p.name} ${isYou ? '(You)' : ''} ${isHost ? '👑' : ''} ${isBot ? '🤖' : ''}</div>
+                            <div class="player-name">${p.name} ${isYou ? '(You)' : ''} ${isHostPlayer ? '👑' : ''} ${isBot ? '🤖' : ''}</div>
                             <div class="player-stats">
                                 <div class="stat"><i class="fa-solid fa-heart" style="color:#f5576c"></i> ${health}</div>
                                 <div class="stat"><i class="fa-solid fa-coins" style="color:#ffd700"></i> ${p.coins}</div>
-                                <div class="stat"><i class="fa-solid fa-cannon" title="Cannon"></i> ${p.canon}</div>
-                                <div class="stat"><i class="fa-solid fa-sword" title="Slicer"></i> ${p.slicer}</div>
+                                <!-- FIX: fa-cannon and fa-sword don't exist in FA6 — replaced with valid icons -->
+                                <div class="stat"><i class="fa-solid fa-bomb" title="Cannon"></i> ${p.canon}</div>
+                                <div class="stat"><i class="fa-solid fa-khanda" title="Slicer"></i> ${p.slicer}</div>
                             </div>
                         </div>
                     </div>
@@ -519,21 +535,25 @@
                     btn.disabled = me.rps_choice !== null;
                 });
                 if (me.rps_choice) {
-                    document.querySelector(`.rps-btn[onclick="chooseRPS('${me.rps_choice}')"]`).classList.add('selected');
+                    const sel = document.querySelector(`.rps-btn[onclick="chooseRPS('${me.rps_choice}')"]`);
+                    if (sel) sel.classList.add('selected');
                 }
             } else if (gameState.phase === 'coin' && me && !me.is_dead) {
                 coinPhase.style.display = 'block';
                 renderShop(me);
                 renderInventory(me);
+            } else if (me && me.is_dead) {
+                waitingMsg.style.display = 'block';
+                waitingMsg.textContent = '💀 You have been eliminated! Spectating...';
             }
         }
 
         function renderShop(me) {
             const shop = document.getElementById('shop');
             const items = [
-                { id: 'shields', icon: '🛡️', name: 'Shield',  desc: 'Block cannon damage',         cost: 1, max: 3 },
-                { id: 'canon',   icon: '💣',  name: 'Cannon',  desc: 'Destroy 1 shield',             cost: 1, max: 3 },
-                { id: 'slicer',  icon: '⚔️',  name: 'Slicer',  desc: 'Deal 1 damage if no shields',  cost: 1, max: 3 }
+                { id: 'shields', icon: '🛡️', name: 'Shield',  desc: 'Block cannon/slicer damage', cost: 1, max: 3 },
+                { id: 'canon',   icon: '💣',  name: 'Cannon',  desc: 'Destroy 1 enemy shield',    cost: 1, max: 3 },
+                { id: 'slicer',  icon: '⚔️',  name: 'Slicer',  desc: 'Deal 1 dmg if unshielded',  cost: 1, max: 3 }
             ];
 
             shop.innerHTML = items.map(item => {
@@ -558,7 +578,7 @@
             if (me.slicer > 0) items.push({ id: 'slicer', icon: '⚔️', name: 'Slicer', count: me.slicer });
 
             if (items.length === 0) {
-                inv.innerHTML = '<div style="opacity:0.5;">No items</div>';
+                inv.innerHTML = '<div style="opacity:0.5;text-align:center;">No weapons — buy some above!</div>';
                 return;
             }
 
@@ -609,11 +629,13 @@
         }
 
         async function startGame() {
-            await apiCall('start_game');
+            const res = await apiCall('start_game');
+            if (res.error) showToast(res.error);
         }
 
         async function chooseRPS(choice) {
-            await apiCall('rps_choice', { uid: userId, choice });
+            const res = await apiCall('rps_choice', { uid: userId, choice });
+            if (res.error) showToast(res.error);
         }
 
         async function buyItem(item) {
@@ -629,10 +651,11 @@
 
         async function useItemOn(targetUid) {
             if (!targetMode) return;
-            const res = await apiCall('use_item', { uid: userId, item: targetMode, target_uid: targetUid });
-            if (res.error) showToast(res.error);
+            const item = targetMode;
             targetMode = null;
             document.getElementById('target-hint').style.display = 'none';
+            const res = await apiCall('use_item', { uid: userId, item, target_uid: targetUid });
+            if (res.error) showToast(res.error);
             renderPlayers();
         }
 
@@ -645,16 +668,21 @@
             toast.className = 'toast';
             toast.textContent = message;
             document.body.appendChild(toast);
-            setTimeout(() => toast.remove(), 2000);
+            setTimeout(() => toast.remove(), 2500);
         }
 
         function showGameOver(winner) {
+            gameOverShown = true;
+            clearInterval(timerInterval);
             const modal = document.getElementById('game-over-modal');
             document.getElementById('winner-name').textContent = winner ? winner.name : 'No Winner';
             modal.classList.add('active');
         }
 
+        // Initial state load
         loadGameState();
+        // FIX: poll state every 4s as fallback in case Pusher events are missed
+        setInterval(() => { if (!gameOverShown) loadGameState(); }, 4000);
     </script>
 </body>
 </html>
