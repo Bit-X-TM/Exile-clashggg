@@ -105,7 +105,16 @@
             gap: 15px; margin-bottom: 30px;
         }
         .stat-card {
-            padding: 20px; text-align: center;
+            padding: 20px; text-align: center; transition: all 0.3s ease;
+        }
+        .stat-card:hover {
+            background: rgba(0, 0, 0, 0.35) !important;
+            box-shadow: 0 8px 40px rgba(0, 0, 0, 0.4) !important;
+            transform: translateY(-2px);
+        }
+        body.light .stat-card:hover {
+            background: rgba(255, 255, 255, 0.25) !important;
+            box-shadow: 0 8px 40px rgba(0, 0, 0, 0.15) !important;
         }
         .stat-value {
             font-size: 2rem; font-weight: 900; margin: 10px 0;
@@ -128,14 +137,14 @@
             background: rgba(255,255,255,0.05);
         }
         .status-badge {
-            padding: 4px 12px; border-radius: 20px; font-size: 0.8rem; font-weight: 700;
-            display: inline-block;
+            padding: 6px 14px; border-radius: 20px; font-size: 0.8rem; font-weight: 700;
+            display: inline-flex; align-items: center; gap: 6px; border: 1px solid;
         }
-        .status-waiting { background: rgba(234, 179, 8, 0.3); color: #fbbf24; }
-        .status-playing { background: rgba(34, 197, 94, 0.3); color: #4ade80; }
-        .status-finished { background: rgba(107, 114, 128, 0.3); color: #9ca3af; }
+        .status-waiting { background: rgba(234, 179, 8, 0.3); color: #fbbf24; border-color: rgba(251, 191, 36, 0.5); }
+        .status-playing { background: rgba(34, 197, 94, 0.3); color: #4ade80; border-color: rgba(74, 222, 128, 0.5); }
+        .status-finished { background: rgba(107, 114, 128, 0.3); color: #9ca3af; border-color: rgba(156, 163, 175, 0.5); }
         .btn-small {
-            padding: 6px 12px; font-size: 0.85rem; width: auto;
+            padding: 8px 14px; font-size: 0.85rem; width: auto; display: inline-flex; align-items: center; gap: 6px;
         }
         .refresh-btn {
             margin-bottom: 20px;
@@ -280,19 +289,19 @@
 
             document.getElementById('statsGrid').innerHTML = `
                 <div class="stat-card glass">
-                    <div class="stat-label">Total Lobbies</div>
+                    <div class="stat-label"><i class="fa-solid fa-shield-halved" style="margin-right:6px;"></i>Total Lobbies</div>
                     <div class="stat-value">${lobbies.length}</div>
                 </div>
                 <div class="stat-card glass">
-                    <div class="stat-label">Waiting</div>
+                    <div class="stat-label"><i class="fa-solid fa-hourglass-end" style="margin-right:6px;"></i>Waiting</div>
                     <div class="stat-value">${waiting}</div>
                 </div>
                 <div class="stat-card glass">
-                    <div class="stat-label">Playing</div>
+                    <div class="stat-label"><i class="fa-solid fa-gamepad" style="margin-right:6px;"></i>Playing</div>
                     <div class="stat-value">${playing}</div>
                 </div>
                 <div class="stat-card glass">
-                    <div class="stat-label">Total Players</div>
+                    <div class="stat-label"><i class="fa-solid fa-users" style="margin-right:6px;"></i>Total Players</div>
                     <div class="stat-value">${totalPlayers}</div>
                 </div>
             `;
@@ -315,7 +324,7 @@
                         <td>${l.name}</td>
                         <td>${host? host.name : 'N/A'}</td>
                         <td>${l.players.length}/6</td>
-                        <td><span class="status-badge status-${l.status}">${l.status.toUpperCase()}</span></td>
+                        <td><span class="status-badge status-${l.status}">${l.status === 'waiting' ? '<i class="fa-solid fa-hourglass-end"></i>' : l.status === 'playing' ? '<i class="fa-solid fa-gamepad"></i>' : '<i class="fa-solid fa-check-circle"></i>'} ${l.status.toUpperCase()}</span></td>
                         <td>${l.phase}</td>
                         <td style="font-size:0.8rem;opacity:0.7;">${created}</td>
                         <td>
