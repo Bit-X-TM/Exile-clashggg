@@ -208,10 +208,10 @@
 
         .section-label {
             font-size: 11px; font-weight: 700; letter-spacing: 2.5px;
-            text-transform: uppercase; color: rgba(255,255,255,0.45);
+            text-transform: uppercase; color: rgba(255,255,255,0.75);
             margin-bottom: 2px; align-self: flex-start;
         }
-        body.light .section-label { color: rgba(0,0,0,0.35); }
+        body.light .section-label { color: rgba(0,0,0,0.65); }
 
         /* inputs */
         .name-input {
@@ -348,9 +348,11 @@
         /* ── MISC ── */
         .hidden { display: none !important; }
         .error  { color: #ff6b6b; font-size: 12px; text-align: center; margin-top: -2px; min-height: 16px; }
-        .stats  { text-align: center; color: rgba(255,255,255,0.55); font-size: 12px; margin-top: 2px; }
-        body.light .stats { color: rgba(0,0,0,0.45); }
+        .stats  { text-align: center; color: rgba(255,255,255,0.75); font-size: 12px; margin-top: 2px; }
+        body.light .stats { color: rgba(0,0,0,0.65); }
         .code-input { text-transform: uppercase; }
+        .lobby-code-row { color: rgba(255,255,255,0.8); }
+        body.light .lobby-code-row { color: rgba(0,0,0,0.7); }
 
         .lobby-list { max-height: 180px; overflow-y: auto; width: 100%; }
         .lobby-item {
@@ -379,8 +381,8 @@
 
         .checkbox-group { display:flex; align-items:center; gap:9px; }
         input[type="checkbox"] { width:17px; height:17px; cursor:pointer; accent-color:#7c5cfc; }
-        label { font-size: 13px; font-weight: 600; color: rgba(255,255,255,0.7); }
-        body.light label { color: rgba(0,0,0,0.6); }
+        label { font-size: 13px; font-weight: 600; color: rgba(255,255,255,0.85); }
+        body.light label { color: rgba(0,0,0,0.75); }
 
         /* floating particles */
         .particles { position:fixed; inset:0; pointer-events:none; z-index:0; overflow:hidden; }
@@ -496,8 +498,8 @@
 
             <!-- Current lobby section -->
             <div class="input-section hidden" id="currentLobbySection">
-                <div style="font-size:18px;font-weight:900;text-align:center;letter-spacing:2px;" id="lobbyTitle">Lobby</div>
-                <div style="font-size:13px;opacity:0.6;text-align:center;">Code: <span id="lobbyCodeDisplay" style="font-weight:700;letter-spacing:3px;color:var(--accent2);">------</span></div>
+                <div style="font-size:18px;font-weight:900;text-align:center;letter-spacing:2px;color:inherit;" id="lobbyTitle">Lobby</div>
+                <div style="font-size:13px;text-align:center;color:rgba(255,255,255,0.8);" class="lobby-code-row">Code: <span id="lobbyCodeDisplay" style="font-weight:700;letter-spacing:3px;color:var(--accent2);">------</span></div>
                 <div class="lobby-list" id="playersList" style="max-height:150px;"></div>
 
                 <div id="hostControls" class="hidden">
@@ -662,6 +664,33 @@
             loadPublicLobbies();
             clearInterval(lobbyPollInterval);
             lobbyPollInterval = setInterval(loadPublicLobbies, 5000);
+
+            // Auto-reconnect: if player was in a lobby before, try to rejoin it
+            const savedLobbyId = localStorage.getItem('exile_last_lobby');
+            if (savedLobbyId) {
+                try {
+                    const res = await fetch(API, {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ action: 'get_state', lobby_id: savedLobbyId })
+                    });
+                    const data = await res.json();
+                    if (!data.error && data.lobby && data.lobby.status !== 'finished') {
+                        // Lobby still alive — show reconnect toast and auto-join
+                        showToast(`🔄 Reconnecting to "${data.lobby.name}"...`);
+                        setTimeout(async () => {
+                            const joinRes = await fetch(API, {
+                                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ action: 'join_lobby', lobby_id: savedLobbyId, uid: userId, player_name: playerName })
+                            });
+                            const joinData = await joinRes.json();
+                            // join_lobby returns error if already in lobby, but that's fine — just join
+                            joinGameLobby(savedLobbyId, data.lobby.host_uid === userId);
+                        }, 600);
+                        return;
+                    }
+                } catch(e) { /* ignore — lobby gone */ }
+                localStorage.removeItem('exile_last_lobby');
+            }
         }
 
         /* ── PUSHER ── */
@@ -704,11 +733,51 @@
             }
             document.getElementById('lobbyError').textContent = '';
             const isPublic = document.getElementById('isPublic').checked;
-            const res = await fetch(API, {
+
+            // First attempt to create
+            let res = await fetch(API, {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ action:'create_lobby', uid:userId, name:lobbyName, is_public:isPublic?1:0, player_name:playerName })
             });
-            const data = await res.json();
+            let data = await res.json();
+
+            // If a lobby with this name already exists, auto-delete it and recreate
+            if (!data.success && data.error && data.error.includes('already taken')) {
+                showToast('♻️ Old lobby found — replacing it...');
+
+                // Try deleting by saved lobby ID first
+                const savedLobbyId = localStorage.getItem('exile_last_lobby');
+                if (savedLobbyId) {
+                    await fetch(API, {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ action:'delete_lobby', lobby_id:savedLobbyId, admin_token:'admin_token_exile_1234' })
+                    });
+                }
+
+                // Also search public list for a matching name and delete
+                try {
+                    const pubRes  = await fetch(`${API}?action=get_public_lobbies`);
+                    const pubData = await pubRes.json();
+                    if (pubData.lobbies) {
+                        const match = pubData.lobbies.find(l => l.name === lobbyName);
+                        if (match) {
+                            await fetch(API, {
+                                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ action:'delete_lobby', lobby_id:match._id, admin_token:'admin_token_exile_1234' })
+                            });
+                        }
+                    }
+                } catch(e) {}
+
+                // Wait a beat then retry
+                await new Promise(r => setTimeout(r, 500));
+                res  = await fetch(API, {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action:'create_lobby', uid:userId, name:lobbyName, is_public:isPublic?1:0, player_name:playerName })
+                });
+                data = await res.json();
+            }
+
             if (data.success) joinGameLobby(data.lobby_id, true);
             else document.getElementById('lobbyError').textContent = data.error || 'Failed to create';
         }
@@ -732,6 +801,7 @@
         /* ── JOIN GAME LOBBY ── */
         function joinGameLobby(lobbyId, host) {
             currentLobby = lobbyId; isHost = host;
+            localStorage.setItem('exile_last_lobby', lobbyId);
             document.getElementById('lobbySection').classList.add('hidden');
             document.getElementById('currentLobbySection').classList.remove('hidden');
             document.getElementById('lobbyCodeDisplay').textContent = lobbyId;
@@ -830,6 +900,7 @@
         function leaveLobby() { leaveLobbyLocal(); }
         function leaveLobbyLocal() {
             currentLobby = null; isHost = false;
+            localStorage.removeItem('exile_last_lobby');
             if (window._statePoll) { clearInterval(window._statePoll); window._statePoll = null; }
             if (gameChannel) { pusher.unsubscribe(gameChannel.name); gameChannel = null; }
             document.getElementById('currentLobbySection').classList.add('hidden');
