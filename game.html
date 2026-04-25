@@ -83,16 +83,12 @@
             border: 2px solid rgba(255,255,255,0.1); border-radius: 16px;
             padding: 12px; text-align: center; position: relative;
             min-height: 210px; display: flex; flex-direction: column;
-            transition: border-color 0.3s ease, box-shadow 0.3s ease, opacity 0.4s ease, filter 0.4s ease;
+            transition: border-color 0.2s, box-shadow 0.2s;
         }
         @media (max-width: 400px) { .player-card { min-height: 185px; padding: 10px; } }
-        .player-card.you   { border-color: #4fc3f7; box-shadow: 0 0 25px rgba(79,195,247,0.4); animation: pulse-you 2s infinite; }
-        .player-card.dead  { opacity: 0.3; filter: grayscale(1); pointer-events: none; }
-        .player-card.bot   { border-color: #ff9800; box-shadow: 0 0 20px rgba(255,152,0,0.3); }
-        @keyframes pulse-you {
-            0%, 100% { box-shadow: 0 0 25px rgba(79,195,247,0.4); }
-            50% { box-shadow: 0 0 35px rgba(79,195,247,0.6); }
-        }
+        .player-card.you   { border-color: #4fc3f7; box-shadow: 0 0 25px rgba(79,195,247,0.4); }
+        .player-card.dead  { opacity: 0.3; filter: grayscale(1); }
+        .player-card.bot   { border-color: #ff9800; }
 
         @keyframes pulse {
             0%,100% { box-shadow: 0 0 15px rgba(245,87,108,0.4); }
@@ -110,7 +106,7 @@
         .island-damage {
             position: absolute; top: 0; left: 0; right: 0; bottom: 0;
             background-size: contain; background-repeat: no-repeat; background-position: center;
-            pointer-events: none; opacity: 0; transition: opacity 0.4s ease;
+            pointer-events: none; opacity: 0; transition: opacity 0.3s;
         }
         .damage-1 .island-damage { clip-path: polygon(0 25%,100% 25%,100% 100%,0 100%); opacity: 1; }
         .damage-2 .island-damage { clip-path: polygon(0 50%,100% 50%,100% 100%,0 100%); opacity: 1; }
@@ -160,9 +156,8 @@
             display: flex; flex-direction: column; align-items: center; justify-content: center;
             gap: 8px; font-size: clamp(2rem,6vw,3rem); color: #fff;
             font-family: 'Poppins', sans-serif;
-            transition: all 0.2s ease;
+            transition: background 0.1s, border-color 0.1s, transform 0.1s;
             touch-action: manipulation; -webkit-user-select: none; user-select: none;
-            min-height: 120px;
         }
         @media (hover: hover) {
             .rps-btn:not(:disabled):hover { background: rgba(255,255,255,0.15); border-color: #4fc3f7; transform: scale(1.05); }
@@ -180,44 +175,6 @@
         .dots::after { content: '.'; animation: dotanim 1.2s infinite; }
         @keyframes dotanim { 0%,25%{content:'.'} 26%,50%{content:'..'} 51%,100%{content:'...'} }
 
-        /* Toast Notifications */
-        .toast-container {
-            position: fixed; bottom: 20px; right: 20px; z-index: 1000;
-            display: flex; flex-direction: column; gap: 10px;
-            max-width: 350px;
-        }
-        @media (max-width: 600px) { .toast-container { bottom: 10px; right: 10px; left: 10px; max-width: none; } }
-
-        .toast {
-            background: rgba(0,0,0,0.9); border-radius: 12px;
-            padding: 14px 18px; border-left: 4px solid;
-            display: flex; align-items: center; gap: 12px;
-            animation: slideIn 0.3s ease, slideOut 0.3s ease 4.7s;
-            box-shadow: 0 8px 32px rgba(0,0,0,0.5);
-            backdrop-filter: blur(10px);
-        }
-        @keyframes slideIn { from { transform: translateX(400px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
-        @keyframes slideOut { from { transform: translateX(0); opacity: 1; } to { transform: translateX(400px); opacity: 0; } }
-        @media (max-width: 600px) {
-            @keyframes slideIn { from { transform: translateY(100px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-            @keyframes slideOut { from { transform: translateY(0); opacity: 1; } to { transform: translateY(100px); opacity: 0; } }
-        }
-
-        .toast-icon { font-size: 18px; flex-shrink: 0; }
-        .toast-content { flex: 1; font-size: 14px; font-weight: 600; }
-        .toast-kill { border-left-color: #f5576c; }
-        .toast-kill .toast-icon { color: #f5576c; }
-        .toast-round-win { border-left-color: #4caf50; }
-        .toast-round-win .toast-icon { color: #4caf50; }
-        .toast-round-lose { border-left-color: #ff9800; }
-        .toast-round-lose .toast-icon { color: #ff9800; }
-        .toast-round-draw { border-left-color: #9c27b0; }
-        .toast-round-draw .toast-icon { color: #9c27b0; }
-        .toast-purchase { border-left-color: #ffd700; }
-        .toast-purchase .toast-icon { color: #ffd700; }
-        .toast-phase { border-left-color: #4fc3f7; }
-        .toast-phase .toast-icon { color: #4fc3f7; }
-
         /* Shop */
         .shop {
             display: grid; grid-template-columns: repeat(3,1fr);
@@ -228,9 +185,8 @@
             border-radius: 16px; padding: clamp(10px,2.5vw,16px) clamp(6px,1.5vw,10px);
             text-align: center; cursor: pointer; color: inherit;
             font-family: 'Poppins', sans-serif; width: 100%;
-            transition: all 0.2s ease;
+            transition: background 0.15s, border-color 0.15s;
             touch-action: manipulation;
-            min-height: 140px;
         }
         @media (hover: hover) {
             .shop-item:not(:disabled):hover { background: rgba(255,255,255,0.15); border-color: #4fc3f7; transform: translateY(-3px); }
@@ -439,8 +395,6 @@
         </div>
     </div>
 
-    <div class="toast-container" id="toast-container"></div>
-
     <script>
         const API = '/api/game';
         const urlParams    = new URLSearchParams(window.location.search);
@@ -461,44 +415,6 @@
         }
 
         document.getElementById('lobby-code').textContent = lobbyId;
-
-        /* ─── TOAST NOTIFICATIONS ──────────────────────── */
-        function showToast(message, type = 'info', icon = 'fa-info-circle') {
-            const container = document.getElementById('toast-container');
-            const toast = document.createElement('div');
-            toast.className = `toast toast-${type}`;
-            toast.innerHTML = `
-                <i class="fa-solid ${icon} toast-icon"></i>
-                <div class="toast-content">${message}</div>
-            `;
-            container.appendChild(toast);
-            setTimeout(() => toast.remove(), 5000);
-        }
-
-        function showKillToast(killerName, victimName) {
-            const message = killerName === playerName ? 
-                `💀 You killed ${victimName}!` : 
-                `💀 ${killerName} killed ${victimName}`;
-            showToast(message, 'kill', 'fa-skull');
-        }
-
-        function showRoundResultToast(result) {
-            if (result === 'win') {
-                showToast('🎉 You won the round!', 'round-win', 'fa-crown');
-            } else if (result === 'lose') {
-                showToast('😢 You lost the round', 'round-lose', 'fa-times-circle');
-            } else {
-                showToast('🤝 Round was a draw', 'round-draw', 'fa-handshake');
-            }
-        }
-
-        function showPurchaseToast(itemName, quantity = 1) {
-            showToast(`Purchased ${quantity}x ${itemName}`, 'purchase', 'fa-shopping-bag');
-        }
-
-        function showPhaseToast(phaseName) {
-            showToast(`Phase: ${phaseName}`, 'phase', 'fa-hourglass-end');
-        }
 
         /* ─── THEME ─────────────────────────────────────── */
         function toggleTheme() {
