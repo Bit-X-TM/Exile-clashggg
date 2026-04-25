@@ -6,482 +6,234 @@
     <title>Exile Clash</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <script src="https://js.pusher.com/8.4.0/pusher.min.js"></script>
     <style>
-        :root {
-            --accent: #7c5cfc;
-            --accent2: #00e5ff;
-            --green: #4CAF50;
-            --red: #f5576c;
-        }
-
         * { margin: 0; padding: 0; box-sizing: border-box; }
         html, body { height: 100%; overflow: hidden; }
-
         body {
             background: url('img/bg/darkd.png') no-repeat center center fixed;
             background-size: cover;
             font-family: 'Poppins', sans-serif;
-            transition: background-image 0.4s ease;
+            transition: background-image 0.3s ease;
             color: #fff;
         }
         body.light {
             background-image: url('img/bg/lightd.png');
-            color: #111;
+            color: #000;
         }
         @media (max-width: 1024px) {
             body { background-image: url('img/bg/darkp.png'); }
             body.light { background-image: url('img/bg/lightp.png'); }
         }
-
-        /* ── LOADING ── */
         #loading {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: #000; display: flex; flex-direction: column;
-            justify-content: center; align-items: center; gap: 20px;
-            z-index: 9999; transition: opacity 0.6s ease;
+            background: #000; display: flex; justify-content: center; align-items: center;
+            z-index: 9999; transition: opacity 0.5s ease;
         }
         #loading.hidden { opacity: 0; pointer-events: none; }
-        .loading-logo {
-            font-size: 28px; font-weight: 900; letter-spacing: 6px;
-            color: #fff; text-transform: uppercase;
-            animation: pulse-logo 1.5s ease-in-out infinite;
-        }
-        @keyframes pulse-logo {
-            0%,100% { opacity: 0.5; } 50% { opacity: 1; }
-        }
         .loading-bar-container {
-            width: 200px; height: 3px; background: rgba(255,255,255,0.15);
+            width: 200px; height: 4px; background: rgba(255,255,255,0.2);
             border-radius: 2px; overflow: hidden;
         }
         .loading-bar {
-            width: 0%; height: 100%;
-            background: linear-gradient(90deg, var(--accent), var(--accent2));
+            width: 0%; height: 100%; background: #fff;
             animation: load 2s ease-in-out forwards;
         }
         @keyframes load { 0% { width: 0%; } 100% { width: 100%; } }
-
-        /* ── GLASS — only used for top-bar ── */
-        .glass-bar {
-            background: rgba(0,0,0,0.22);
-            backdrop-filter: blur(8px);
-            -webkit-backdrop-filter: blur(8px);
-            border: 1px solid rgba(255,255,255,0.08);
-            box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+        .glass {
+            background: rgba(0, 0, 0, 0.25);
+            border-radius: 16px;
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(3.7px);
+            -webkit-backdrop-filter: blur(3.7px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
         }
-        body.light .glass-bar {
-            background: rgba(255,255,255,0.22);
-            border: 1px solid rgba(0,0,0,0.08);
+        body.light .glass {
+            background: rgba(255, 255, 255, 0.17);
+            border: 1px solid rgba(255, 255, 255, 0.09);
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
         }
-
-        /* ── TOP BAR ── */
         .top-bar {
-            position: fixed; top: 16px; left: 16px; right: 16px; height: 52px;
+            position: fixed; top: 20px; left: 20px; right: 20px; height: 60px;
             display: flex; justify-content: space-between; align-items: center;
-            padding: 0 18px; z-index: 100; border-radius: 14px;
-            animation: slideDown 0.6s ease forwards;
+            padding: 0 24px; z-index: 100;
         }
-        @keyframes slideDown {
-            from { opacity: 0; transform: translateY(-20px); }
-            to   { opacity: 1; transform: translateY(0); }
-        }
-
         .logo {
-            color: #fff; font-size: clamp(14px, 3vw, 17px); font-weight: 700;
-            text-shadow: 0 2px 8px rgba(0,0,0,0.5); display: flex; align-items: center; gap: 8px;
+            color: #fff; font-size: clamp(16px, 3vw, 20px); font-weight: 700;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
         }
-        body.light .logo { color: #111; text-shadow: none; }
-
-        .top-bar-right { display: flex; align-items: center; gap: 8px; }
-
-        /* time + IP — plain text, no box */
-        .info-pill {
-            display: flex; align-items: center; gap: 6px;
-            font-size: 11.5px; font-weight: 600;
-            color: rgba(255,255,255,0.8);
-            padding: 4px 10px; border-radius: 8px;
-            background: rgba(255,255,255,0.08);
-            border: 1px solid rgba(255,255,255,0.1);
-        }
-        .info-pill .divider { opacity: 0.25; margin: 0 2px; }
-        body.light .info-pill { color: rgba(0,0,0,0.7); background: rgba(0,0,0,0.07); border-color: rgba(0,0,0,0.1); }
-
+        body.light .logo { color: #000; text-shadow: 0 2px 4px rgba(255,255,255,0.3); }
         .theme-btn {
-            color: #fff; padding: 6px 13px; border-radius: 10px; cursor: pointer;
-            font-size: 12px; transition: all 0.25s ease;
-            border: 1px solid rgba(255,255,255,0.12);
-            background: rgba(255,255,255,0.1);
-            font-family: 'Poppins', sans-serif; font-weight: 700;
+            color: #fff; padding: 8px 16px; border-radius: 12px; cursor: pointer;
+            font-size: clamp(12px, 2.5vw, 14px); transition: all 0.3s ease;
+            border: none; font-family: 'Poppins', sans-serif; font-weight: 700;
         }
-        body.light .theme-btn { color: #111; background: rgba(0,0,0,0.08); border-color: rgba(0,0,0,0.1); }
-        .theme-btn:hover { transform: translateY(-1px); background: rgba(255,255,255,0.16); }
-        body.light .theme-btn:hover { background: rgba(0,0,0,0.13); }
-
-        /* ── PAGE WRAPPER — NO glass, just a flex container ── */
+        body.light .theme-btn { color: #000; }
+        .theme-btn:hover { transform: translateY(-1px); }
         .page-wrapper {
-            position: fixed; top: 80px; left: 0; right: 0; bottom: 0;
-            display: flex; justify-content: center; align-items: center;
-            padding: clamp(16px, 3vw, 32px);
-            animation: fadeIn 0.6s 0.1s ease both;
+            position: fixed; top: 100px; left: 20px; right: 20px; bottom: 20px;
+            padding: clamp(20px, 4vw, 40px); display: flex; justify-content: center; align-items: center;
         }
-        @keyframes fadeIn {
-            from { opacity: 0; transform: scale(0.98); }
-            to   { opacity: 1; transform: scale(1); }
-        }
-
-        /* ── CONTENT ── */
         .content {
-            display: flex; align-items: center; gap: clamp(40px, 8vw, 100px);
+            display: flex; align-items: center; gap: clamp(30px, 8vw, 80px);
             width: 100%; max-width: 1200px; justify-content: center;
-            background: rgba(255,255,255,0.06);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
-            border: 1px solid rgba(255,255,255,0.11);
-            border-radius: 28px;
-            padding: clamp(32px, 5vw, 56px) clamp(28px, 6vw, 64px);
-            box-shadow: 0 8px 48px rgba(0,0,0,0.15);
         }
         @media (max-width: 1024px) {
-            .content { flex-direction: column; gap: clamp(16px, 4vw, 32px); }
+            .content { flex-direction: column; gap: clamp(30px, 6vw, 50px); }
         }
-        body.light .content {
-            background: rgba(255,255,255,0.25);
-            border-color: rgba(255,255,255,0.4);
-            box-shadow: 0 8px 48px rgba(0,0,0,0.07);
-        }
-
-        /* ── TITLE ── */
-        .title-wrapper {
-            display: flex; flex-direction: column;
-            align-items: flex-start; line-height: 0.88;
-        }
-        @media (max-width: 1024px) { .title-wrapper { align-items: center; } }
-
+        .title-wrapper { display: flex; flex-direction: column; align-items: flex-start; line-height: 0.85; }
         .game-title {
-            font-size: clamp(52px, 10vw, 100px); font-weight: 900;
-            letter-spacing: clamp(3px, 0.8vw, 10px);
-            text-shadow: 0 4px 24px rgba(0,0,0,0.6);
-            color: #fff;
-            animation: titleReveal 0.8s ease both;
+            font-size: clamp(42px, 9vw, 90px); font-weight: 900; color: #fff;
+            letter-spacing: clamp(2px, 0.8vw, 8px); text-shadow: 0 6px 20px rgba(0,0,0,0.6);
         }
-        .game-title.clash { animation-delay: 0.15s; }
-        @keyframes titleReveal {
-            from { opacity: 0; transform: translateY(16px); }
-            to   { opacity: 1; transform: translateY(0); }
+        body.light .game-title { color: #000; text-shadow: 0 6px 20px rgba(255,255,255,0.4); }
+        .game-title.exile { letter-spacing: clamp(3px, 1vw, 10px); }
+        .game-title.clash { letter-spacing: clamp(2px, 0.9vw, 8px); }
+        @media (max-width: 1024px) {
+            .title-wrapper { align-items: center; }
+            .game-title { text-align: center; }
         }
-        body.light .game-title { color: #111; text-shadow: 0 3px 12px rgba(0,0,0,0.12); }
-
-        .tagline {
-            margin-top: 10px; font-size: clamp(10px, 1.4vw, 13px);
-            font-weight: 600; letter-spacing: 3px; text-transform: uppercase;
-            color: rgba(255,255,255,0.5);
-            animation: titleReveal 0.8s 0.3s ease both;
-        }
-        body.light .tagline { color: rgba(0,0,0,0.4); }
-        @media (max-width: 1024px) { .tagline { text-align: center; } }
-
-        .badges {
-            display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap;
-            animation: titleReveal 0.8s 0.4s ease both;
-        }
-        @media (max-width: 1024px) { .badges { justify-content: center; } }
-        .badge {
-            font-size: 10px; font-weight: 700; letter-spacing: 1px;
-            padding: 3px 9px; border-radius: 6px; text-transform: uppercase;
-            border: 1px solid rgba(255,255,255,0.15);
-            background: rgba(255,255,255,0.07);
-        }
-        body.light .badge { border-color: rgba(0,0,0,0.12); background: rgba(0,0,0,0.06); }
-        .badge.live { color: #ff4d6d; border-color: rgba(255,77,109,0.4); background: rgba(255,77,109,0.1); }
-        .badge.rps  { color: #00e5ff; border-color: rgba(0,229,255,0.3); background: rgba(0,229,255,0.08); }
-        .badge.mp   { color: #a8ff78; border-color: rgba(168,255,120,0.3); background: rgba(168,255,120,0.08); }
-
-        /* ── INPUT SECTION — NO box, NO glass background ── */
-        .input-section {
-            display: flex; flex-direction: column;
-            align-items: center; gap: 12px;
-            width: clamp(280px, 44vw, 340px);
-            animation: fadeIn 0.7s 0.3s ease both;
-        }
-
-        .section-label {
-            font-size: 11px; font-weight: 700; letter-spacing: 2.5px;
-            text-transform: uppercase; color: rgba(255,255,255,0.45);
-            margin-bottom: 2px; align-self: flex-start;
-        }
-        body.light .section-label { color: rgba(0,0,0,0.35); }
-
-        /* inputs */
+        .input-section { display: flex; flex-direction: column; align-items: center; gap: 20px; padding: clamp(20px, 3vw, 30px); }
         .name-input {
-            background: rgba(255,255,255,0.08);
-            border: 1px solid rgba(255,255,255,0.18);
-            border-radius: 12px;
-            padding: 13px 18px;
-            font-size: clamp(14px, 2.2vw, 16px);
-            color: #fff; width: 100%; text-align: center; outline: none;
-            transition: all 0.25s ease; font-family: 'Poppins', sans-serif;
+            background: rgba(255, 255, 255, 0.15); border: 1px solid rgba(255, 255, 255, 0.3);
+            backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px); border-radius: 12px;
+            padding: clamp(14px, 2vw, 16px) clamp(20px, 3vw, 24px); font-size: clamp(16px, 2.5vw, 18px);
+            color: #fff; width: clamp(280px, 50vw, 320px); text-align: center; outline: none;
+            transition: all 0.3s ease; font-family: 'Poppins', sans-serif;
         }
-        .name-input::placeholder { color: rgba(255,255,255,0.4); }
+        .name-input::placeholder { color: rgba(255, 255, 255, 0.6); }
         .name-input:focus {
-            background: rgba(255,255,255,0.13);
-            border-color: rgba(0,229,255,0.6);
-            box-shadow: 0 0 0 3px rgba(0,229,255,0.12);
+            background: rgba(255, 255, 255, 0.25); border: 1px solid rgba(255, 255, 255, 0.5);
+            box-shadow: 0 0 20px rgba(255,255,255,0.2);
         }
         body.light .name-input {
-            background: rgba(0,0,0,0.08);
-            border-color: rgba(0,0,0,0.18);
-            color: #111;
+            background: rgba(0, 0, 0, 0.1); border: 1px solid rgba(0, 0, 0, 0.2); color: #000;
         }
-        body.light .name-input::placeholder { color: rgba(0,0,0,0.35); }
+        body.light .name-input::placeholder { color: rgba(0, 0, 0, 0.5); }
         body.light .name-input:focus {
-            background: rgba(0,0,0,0.12);
-            border-color: rgba(124,92,252,0.5);
-            box-shadow: 0 0 0 3px rgba(124,92,252,0.12);
+            background: rgba(0, 0, 0, 0.15); border: 1px solid rgba(0, 0, 0, 0.3);
+            box-shadow: 0 0 20px rgba(0,0,0,0.1);
         }
-
-        /* ── BUTTONS ── */
-        .btn-stack { display: flex; flex-direction: column; gap: 10px; width: 100%; }
-        .btn-group  { display: flex; gap: 10px; width: 100%; }
-
+        .btn-group { display: flex; gap: 16px; width: clamp(280px, 50vw, 320px); }
+        @media (max-width: 480px) { .btn-group { flex-direction: column; width: 100%; } }
         .btn {
-            width: 100%;
-            padding: 13px 18px;
-            font-size: clamp(13px, 2vw, 15px); font-weight: 700; color: #fff;
-            cursor: pointer; transition: all 0.22s ease;
-            text-shadow: 0 1px 4px rgba(0,0,0,0.4); border: 1px solid transparent;
-            font-family: 'Poppins', sans-serif;
-            display: flex; align-items: center; justify-content: center; gap: 8px;
-            border-radius: 12px; position: relative; overflow: hidden;
+            flex: 1; padding: clamp(12px, 2vw, 14px) clamp(16px, 3vw, 20px);
+            font-size: clamp(14px, 2.5vw, 16px); font-weight: 700; color: #fff; cursor: pointer;
+            transition: all 0.3s ease; text-shadow: 0 2px 4px rgba(0,0,0,0.3); border: none;
+            font-family: 'Poppins', sans-serif; display: flex; align-items: center; justify-content: center; gap: 8px;
+            border-radius: 12px;
         }
-        .btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,0.3); }
-        .btn:active { transform: translateY(0); }
-        .btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; box-shadow: none; }
-        body.light .btn { color: #fff; }
-
-        .btn-primary {
-            background: linear-gradient(135deg, #3a7d44, #4CAF50);
-            border-color: rgba(76,175,80,0.5);
-        }
-        .btn-primary:hover { background: linear-gradient(135deg, #4CAF50, #5cc060); }
-
-        .btn-credits {
-            background: linear-gradient(135deg, rgba(124,92,252,0.5), rgba(0,229,255,0.3));
-            border-color: rgba(124,92,252,0.35);
-        }
-        .btn-credits:hover { background: linear-gradient(135deg, rgba(124,92,252,0.7), rgba(0,229,255,0.45)); }
-
-        .btn-secondary {
-            background: rgba(255,255,255,0.1);
-            border-color: rgba(255,255,255,0.15);
-        }
-        .btn-secondary:hover { background: rgba(255,255,255,0.18); }
-
-        .btn-danger { background: rgba(245,87,108,0.4); border-color: rgba(245,87,108,0.35); }
-        .btn-danger:hover { background: rgba(245,87,108,0.6); }
-
-        .btn-flex { flex: 1; width: auto; }
-
-        /* ── CREDITS POPUP ── */
-        .credits-overlay {
-            display: none; position: fixed; inset: 0; z-index: 5000;
-            background: rgba(0,0,0,0.6); backdrop-filter: blur(8px);
-            justify-content: center; align-items: center;
-        }
-        .credits-overlay.show { display: flex; animation: fadeIn 0.25s ease; }
-
-        .credits-card {
-            background: rgba(12,12,24,0.92);
-            border: 1px solid rgba(255,255,255,0.1);
-            border-radius: 22px;
-            padding: 36px 40px;
-            max-width: 320px; width: 90%;
-            text-align: center;
-            box-shadow: 0 24px 60px rgba(0,0,0,0.6);
-            animation: popIn 0.3s cubic-bezier(0.34,1.56,0.64,1) both;
-        }
-        body.light .credits-card {
-            background: rgba(245,245,255,0.95);
-            border-color: rgba(0,0,0,0.08);
-        }
-        @keyframes popIn {
-            from { opacity: 0; transform: scale(0.85); }
-            to   { opacity: 1; transform: scale(1); }
-        }
-        .credits-icon {
-            font-size: 34px; margin-bottom: 12px;
-            background: linear-gradient(135deg, #7c5cfc, #00e5ff);
-            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-        }
-        .credits-title {
-            font-size: 20px; font-weight: 900; letter-spacing: 2px;
-            margin-bottom: 4px; text-transform: uppercase;
-        }
-        .credits-subtitle {
-            font-size: 11px; opacity: 0.4; letter-spacing: 2px;
-            text-transform: uppercase; margin-bottom: 16px;
-        }
-        .credits-divider { height: 1px; background: rgba(255,255,255,0.08); margin: 14px 0; }
-        body.light .credits-divider { background: rgba(0,0,0,0.08); }
-        .credits-name {
-            font-size: 16px; font-weight: 700; margin-bottom: 3px;
-            background: linear-gradient(90deg, #7c5cfc, #00e5ff);
-            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-        }
-        .credits-role { font-size: 12px; opacity: 0.45; letter-spacing: 1px; margin-bottom: 18px; }
-        .credits-stack { display:flex; gap:7px; justify-content:center; flex-wrap:wrap; margin-bottom:18px; }
-        .credits-tag {
-            font-size: 10px; font-weight: 700; padding: 3px 9px;
-            border-radius: 6px; border: 1px solid rgba(255,255,255,0.1);
-            background: rgba(255,255,255,0.06); letter-spacing: 0.5px;
-        }
-        body.light .credits-tag { border-color: rgba(0,0,0,0.1); background: rgba(0,0,0,0.05); }
-        .credits-close {
-            padding: 10px 28px; border-radius: 11px;
-            background: linear-gradient(135deg, #7c5cfc, #00e5ff);
-            border: none; color: #fff; font-weight: 700; font-size: 13px;
-            cursor: pointer; font-family: 'Poppins', sans-serif; transition: all 0.2s;
-        }
-        .credits-close:hover { transform: scale(1.04); opacity: 0.88; }
-
-        /* ── MISC ── */
+        body.light .btn { color: #000; text-shadow: 0 2px 4px rgba(255,255,255,0.3); }
+        .btn:hover { transform: translateY(-2px); }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+        .btn-primary { background: rgba(76, 175, 80, 0.3); }
+        .btn-primary:hover { background: rgba(76, 175, 80, 0.5); }
+        .btn-danger { background: rgba(245, 87, 108, 0.3); }
+        .btn-danger:hover { background: rgba(245, 87, 108, 0.5); }
         .hidden { display: none !important; }
-        .error  { color: #ff6b6b; font-size: 12px; text-align: center; margin-top: -2px; min-height: 16px; }
-        .stats  { text-align: center; color: rgba(255,255,255,0.55); font-size: 12px; margin-top: 2px; }
-        body.light .stats { color: rgba(0,0,0,0.45); }
+        .error { color: #ff5555; font-size: 14px; text-align: center; margin-top: -10px; }
+        .stats { text-align: center; opacity: 0.8; font-size: 14px; margin-top: 10px; }
         .code-input { text-transform: uppercase; }
-
-        .lobby-list { max-height: 180px; overflow-y: auto; width: 100%; }
+        .lobby-list { max-height: 200px; overflow-y: auto; width: 100%; margin-top: 15px; }
         .lobby-item {
-            background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.12);
-            border-radius: 10px; padding: 10px 14px; margin-bottom: 7px; cursor: pointer;
-            transition: all 0.22s; display: flex; justify-content: space-between; align-items: center;
+            background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15);
+            border-radius: 10px; padding: 10px 15px; margin-bottom: 8px; cursor: pointer;
+            transition: all 0.3s; display: flex; justify-content: space-between; align-items: center;
         }
-        .lobby-item:hover { background: rgba(255,255,255,0.14); transform: translateX(3px); }
-        body.light .lobby-item { background: rgba(0,0,0,0.06); border-color: rgba(0,0,0,0.12); }
-        body.light .lobby-item:hover { background: rgba(0,0,0,0.1); }
-
-        .bot-badge  { background:#ff9800;color:#fff;padding:2px 7px;border-radius:5px;font-size:9px;font-weight:700;margin-left:6px; }
-        .host-badge { background:linear-gradient(90deg,#f093fb,#f5576c);color:#fff;padding:2px 7px;border-radius:5px;font-size:9px;font-weight:700;margin-left:6px; }
-
+        .lobby-item:hover { background: rgba(255,255,255,0.15); transform: translateX(5px); box-shadow: 0 4px 15px rgba(79,195,247,0.2); }
+        .bot-badge {
+            background: rgba(255, 152, 0, 0.3); color: #ffa726; padding: 4px 10px; border-radius: 8px;
+            font-size: 10px; font-weight: 700; margin-left: 8px; display: inline-flex; align-items: center; gap: 4px;
+            border: 1px solid rgba(255, 152, 0, 0.5);
+        }
+        .host-badge {
+            background: rgba(240, 147, 251, 0.3); color: #f093fb; padding: 4px 10px; border-radius: 8px;
+            font-size: 10px; font-weight: 700; margin-left: 8px; display: inline-flex; align-items: center; gap: 4px;
+            border: 1px solid rgba(240, 147, 251, 0.5);
+        }
         .toast {
-            position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%);
-            background: rgba(10,10,20,0.95); color: #fff; padding: 11px 22px;
+            position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.9); color: #fff; padding: 12px 24px;
             border-radius: 12px; font-weight: 700; z-index: 2000;
             animation: slideUp 0.3s ease; max-width: 90vw; text-align: center;
-            border: 1px solid rgba(255,255,255,0.08); font-size: 13px;
         }
         @keyframes slideUp {
-            from { opacity: 0; transform: translate(-50%, 16px); }
-            to   { opacity: 1; transform: translate(-50%, 0); }
+            from { opacity: 0; transform: translate(-50%, 20px); }
+            to { opacity: 1; transform: translate(-50%, 0); }
         }
-
-        .checkbox-group { display:flex; align-items:center; gap:9px; }
-        input[type="checkbox"] { width:17px; height:17px; cursor:pointer; accent-color:#7c5cfc; }
-        label { font-size: 13px; font-weight: 600; color: rgba(255,255,255,0.7); }
-        body.light label { color: rgba(0,0,0,0.6); }
-
-        /* floating particles */
-        .particles { position:fixed; inset:0; pointer-events:none; z-index:0; overflow:hidden; }
-        .particle {
-            position:absolute; border-radius:50%; opacity:0;
-            animation: float linear infinite;
+        .checkbox-group {
+            display: flex; align-items: center; gap: 10px; margin-bottom: 20px;
         }
-        @keyframes float {
-            0%   { transform: translateY(100vh) scale(0); opacity:0; }
-            10%  { opacity: 0.35; }
-            90%  { opacity: 0.15; }
-            100% { transform: translateY(-10vh) scale(1); opacity:0; }
+        input[type="checkbox"] {
+            width: 20px; height: 20px; cursor: pointer;
+        }
+        .icon-inline { display: inline-flex; align-items: center; gap: 6px; }
+        .glass-enhanced {
+            background: rgba(0, 0, 0, 0.25);
+            border-radius: 16px;
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(3.7px);
+            -webkit-backdrop-filter: blur(3.7px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            transition: all 0.3s ease;
+        }
+        .glass-enhanced:hover {
+            background: rgba(0, 0, 0, 0.35);
+            box-shadow: 0 8px 40px rgba(0, 0, 0, 0.4);
+        }
+        body.light .glass-enhanced {
+            background: rgba(255, 255, 255, 0.17);
+            border: 1px solid rgba(255, 255, 255, 0.09);
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+        }
+        body.light .glass-enhanced:hover {
+            background: rgba(255, 255, 255, 0.25);
+            box-shadow: 0 8px 40px rgba(0, 0, 0, 0.15);
         }
     </style>
 </head>
 <body>
-
-    <!-- Floating particles -->
-    <div class="particles" id="particles"></div>
-
-    <!-- Loading -->
     <div id="loading">
-        <div class="loading-logo"><i class="fa-solid fa-khanda"></i> Exile Clash</div>
         <div class="loading-bar-container">
             <div class="loading-bar"></div>
         </div>
     </div>
 
-    <!-- Credits popup -->
-    <div class="credits-overlay" id="creditsOverlay" onclick="closeCredits(event)">
-        <div class="credits-card">
-            <div class="credits-icon"><i class="fa-solid fa-khanda"></i></div>
-            <div class="credits-title">Exile Clash</div>
-            <div class="credits-subtitle">Real-time RPS Battle</div>
-            <div class="credits-divider"></div>
-            <div class="credits-name">Nethindu Thaminda</div>
-            <div class="credits-role">Developer · Elite Voxy</div>
-            <div class="credits-stack">
-                <span class="credits-tag">MongoDB</span>
-                <span class="credits-tag">Pusher</span>
-                <span class="credits-tag">Vercel</span>
-                <span class="credits-tag">Node.js</span>
-            </div>
-            <button class="credits-close" onclick="closeCredits()">Close</button>
-        </div>
-    </div>
-
-    <!-- Top Bar -->
-    <div class="top-bar glass-bar">
+    <div class="top-bar glass">
         <div class="logo"><i class="fa-solid fa-khanda"></i> Exile Clash</div>
-        <div class="top-bar-right">
-            <div class="info-pill glass" id="infoPill">
-                <span><i class="fa-regular fa-clock"></i> <span id="liveClock">--:--:--</span></span>
-                <span class="divider">|</span>
-                <span><i class="fa-solid fa-location-dot"></i> <span id="userIp">...</span></span>
-            </div>
-            <button class="theme-btn glass" onclick="toggleTheme()"><i class="fa-solid fa-sun"></i> Theme</button>
-        </div>
+        <button class="theme-btn glass" onclick="toggleTheme()"><i class="fa-solid fa-sun"></i> Theme</button>
     </div>
 
-    <!-- Main page -->
-    <div class="page-wrapper">
+    <div class="page-wrapper glass">
         <div class="content">
-
-            <!-- Title block -->
             <div class="title-wrapper">
                 <div class="game-title exile">EXILE</div>
                 <div class="game-title clash">CLASH</div>
-                <div class="tagline">⚔ Battle of Champions</div>
-                <div class="badges">
-                    <span class="badge live"><i class="fa-solid fa-circle" style="font-size:8px;"></i> Live</span>
-                    <span class="badge rps">RPS</span>
-                    <span class="badge mp">Multiplayer</span>
-                </div>
             </div>
-
-            <!-- Name section -->
             <div class="input-section" id="nameSection">
-                <div class="section-label">Enter the Arena</div>
-                <input type="text" class="name-input" id="playerName" placeholder="Your Warrior Name" maxlength="20">
-                <div class="btn-stack">
-                    <button class="btn btn-primary" onclick="enterLobby()">
+                <input type="text" class="name-input" id="playerName" placeholder="Enter Your Name" maxlength="20">
+                <div class="btn-group">
+                    <button class="btn btn-primary glass" onclick="enterLobby()">
                         <i class="fa-solid fa-gamepad"></i> Enter the Arena
                     </button>
-                    <button class="btn btn-credits" onclick="showCredits()">
+                    <button class="btn glass" onclick="showCredits()">
                         <i class="fa-solid fa-star"></i> Credits
                     </button>
                 </div>
                 <div class="error" id="nameError"></div>
             </div>
 
-            <!-- Lobby section -->
             <div class="input-section hidden" id="lobbySection">
-                <div class="section-label">Battle Lobby</div>
-                <input type="text" class="name-input" id="lobbyNameInput" placeholder="Lobby Name" maxlength="30">
-                <button class="btn btn-primary" onclick="createBattle()">
+                <div style="font-size:20px;font-weight:900;text-align:center;"><i class="fa-solid fa-users-crosshairs" style="margin-right:8px;"></i>BATTLE LOBBY</div>
+                <input type="text" class="name-input" id="lobbyNameInput" placeholder="Enter Lobby Name" maxlength="30">
+                <button class="btn btn-primary glass" onclick="createBattle()">
                     <i class="fa-solid fa-khanda"></i> Create Battle
                 </button>
                 <div class="btn-group">
-                    <input type="text" class="name-input code-input btn-flex" id="battleCode" placeholder="BATTLE CODE" maxlength="6" style="flex:1;width:auto;">
-                    <button class="btn btn-secondary btn-flex" onclick="joinBattle()" style="flex:0 0 auto;width:auto;padding:0 18px;">
+                    <input type="text" class="name-input code-input" id="battleCode" placeholder="BATTLE CODE" maxlength="6">
+                    <button class="btn glass" onclick="joinBattle()" style="flex:0;padding:0 16px;">
                         <i class="fa-solid fa-right-to-bracket"></i>
                     </button>
                 </div>
@@ -494,121 +246,59 @@
                 <div class="error" id="lobbyError"></div>
             </div>
 
-            <!-- Current lobby section -->
             <div class="input-section hidden" id="currentLobbySection">
-                <div style="font-size:18px;font-weight:900;text-align:center;letter-spacing:2px;" id="lobbyTitle">Lobby</div>
-                <div style="font-size:13px;opacity:0.6;text-align:center;">Code: <span id="lobbyCodeDisplay" style="font-weight:700;letter-spacing:3px;color:var(--accent2);">------</span></div>
+                <div style="font-size:20px;font-weight:900;text-align:center;" id="lobbyTitle"><i class="fa-solid fa-shield-halved" style="margin-right:8px;"></i>Lobby</div>
+                <div style="font-size:14px;opacity:0.8;text-align:center;">Code: <span id="lobbyCodeDisplay" style="font-weight:700;letter-spacing:2px;">------</span></div>
                 <div class="lobby-list" id="playersList" style="max-height:150px;"></div>
 
                 <div id="hostControls" class="hidden">
-                    <div class="btn-group" style="margin-bottom:10px;">
-                        <button class="btn btn-secondary btn-flex" onclick="addBot()" style="font-size:13px;">
+                    <div class="btn-group" style="margin-bottom:12px;">
+                        <button class="btn glass" onclick="addBot()" style="font-size:13px;">
                             <i class="fa-solid fa-robot"></i> Add Bot
                         </button>
-                        <button class="btn btn-secondary btn-flex" onclick="removeBot()" style="font-size:13px;">
+                        <!-- FIX: removeBot now calls API to actually remove a bot -->
+                        <button class="btn glass" onclick="removeBot()" style="font-size:13px;">
                             <i class="fa-solid fa-user-minus"></i> Remove Bot
                         </button>
                     </div>
                     <div class="btn-group">
-                        <button class="btn btn-primary btn-flex" onclick="startGame()" id="startBtn">
-                            <i class="fa-solid fa-play"></i> Start
+                        <button class="btn btn-primary glass" onclick="startGame()" id="startBtn">
+                            <i class="fa-solid fa-play"></i> Start Game
                         </button>
-                        <button class="btn btn-danger btn-flex" onclick="deleteLobby()">
+                        <button class="btn btn-danger glass" onclick="deleteLobby()">
                             <i class="fa-solid fa-trash"></i> Delete
                         </button>
                     </div>
                 </div>
 
                 <div id="playerControls" class="hidden">
-                    <button class="btn btn-secondary" onclick="leaveLobby()" style="width:100%;">
+                    <button class="btn glass" onclick="leaveLobby()">
                         <i class="fa-solid fa-door-open"></i> Leave Lobby
                     </button>
                 </div>
                 <div class="error" id="gameError"></div>
             </div>
-
         </div>
     </div>
 
     <script>
-        /* ── CONFIG ── */
-        const PUSHER_KEY    = '52d629612765e85a5546';
-        const PUSHER_CLUSTER= 'ap2';
-        const API           = '/api/game';
-
+        const PUSHER_KEY = '52d629612765e85a5546';
+        const PUSHER_CLUSTER = 'ap2';
+        const API = '/api/game';
         let pusher, globalChannel, gameChannel;
         let playerName = '';
+        // FIX: generate a more unique userId to avoid collisions
         let userId = localStorage.getItem('exile_uid') || ('u_' + Math.random().toString(36).substring(2, 15));
         let currentLobby = null, isHost = false;
         let lobbyPollInterval = null;
         localStorage.setItem('exile_uid', userId);
 
-        /* ── RANDOM NAME POOL ── */
-        const adjectives = ['Shadow','Iron','Storm','Neon','Void','Blaze','Frost','Dark','Wild','Swift'];
-        const nouns      = ['Blade','Wolf','Eagle','Phoenix','Dragon','Titan','Raven','Fox','Hawk','Knight'];
-        function randomName() {
-            const a = adjectives[Math.floor(Math.random() * adjectives.length)];
-            const n = nouns[Math.floor(Math.random() * nouns.length)];
-            return a + n + Math.floor(Math.random() * 99);
-        }
-
-        /* ── LOAD ── */
-        window.addEventListener('load', function () {
+        window.addEventListener('load', function() {
             setTimeout(() => {
                 document.getElementById('loading').classList.add('hidden');
             }, 2200);
-
-            // pre-fill saved name
-            const saved = localStorage.getItem('exile_player_name');
-            if (saved) document.getElementById('playerName').value = saved;
-
-            startClock();
-            fetchIp();
-            spawnParticles();
         });
 
-        /* ── CLOCK ── */
-        function startClock() {
-            function tick() {
-                const now = new Date();
-                document.getElementById('liveClock').textContent =
-                    now.toLocaleTimeString([], { hour:'2-digit', minute:'2-digit', second:'2-digit' });
-            }
-            tick();
-            setInterval(tick, 1000);
-        }
-
-        /* ── IP ── */
-        async function fetchIp() {
-            try {
-                const r = await fetch('https://api.ipify.org?format=json');
-                const d = await r.json();
-                document.getElementById('userIp').textContent = d.ip;
-            } catch {
-                document.getElementById('userIp').textContent = 'N/A';
-            }
-        }
-
-        /* ── PARTICLES ── */
-        function spawnParticles() {
-            const container = document.getElementById('particles');
-            const colors = ['rgba(124,92,252,0.6)','rgba(0,229,255,0.5)','rgba(255,255,255,0.3)','rgba(76,175,80,0.5)'];
-            for (let i = 0; i < 18; i++) {
-                const p = document.createElement('div');
-                p.className = 'particle';
-                const size = Math.random() * 5 + 2;
-                p.style.cssText = `
-                    width:${size}px; height:${size}px;
-                    left:${Math.random()*100}%;
-                    background:${colors[Math.floor(Math.random()*colors.length)]};
-                    animation-duration:${Math.random()*12+8}s;
-                    animation-delay:${Math.random()*8}s;
-                `;
-                container.appendChild(p);
-            }
-        }
-
-        /* ── THEME ── */
         function toggleTheme() {
             document.body.classList.toggle('light');
             const btn = document.querySelector('.theme-btn');
@@ -620,57 +310,45 @@
                 localStorage.setItem('theme', 'dark');
             }
         }
+
         const savedTheme = localStorage.getItem('theme');
         if (savedTheme === 'light') {
             document.body.classList.add('light');
             document.querySelector('.theme-btn').innerHTML = '<i class="fa-solid fa-moon"></i> Theme';
         }
 
-        /* ── TOAST ── */
         function showToast(msg) {
-            const t = document.createElement('div');
-            t.className = 'toast';
-            t.textContent = msg;
-            document.body.appendChild(t);
-            setTimeout(() => t.remove(), 2500);
+            const toast = document.createElement('div');
+            toast.className = 'toast';
+            toast.textContent = msg;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 2500);
         }
 
-        /* ── CREDITS ── */
-        function showCredits() {
-            document.getElementById('creditsOverlay').classList.add('show');
-        }
-        function closeCredits(e) {
-            if (!e || e.target === document.getElementById('creditsOverlay')) {
-                document.getElementById('creditsOverlay').classList.remove('show');
-            }
-        }
-
-        /* ── ENTER LOBBY ── */
         async function enterLobby() {
-            let name = document.getElementById('playerName').value.trim();
+            const name = document.getElementById('playerName').value.trim();
             if (!name) {
-                name = randomName();
-                document.getElementById('playerName').value = name;
-                showToast('🎲 Random name assigned: ' + name);
+                document.getElementById('nameError').textContent = 'Please enter your name!';
+                return;
             }
-            document.getElementById('nameError').textContent = '';
             playerName = name;
             localStorage.setItem('exile_player_name', playerName);
             document.getElementById('nameSection').classList.add('hidden');
             document.getElementById('lobbySection').classList.remove('hidden');
             initPusher();
             loadPublicLobbies();
+            // FIX: clear any previous interval before setting a new one
             clearInterval(lobbyPollInterval);
             lobbyPollInterval = setInterval(loadPublicLobbies, 5000);
         }
 
-        /* ── PUSHER ── */
         function initPusher() {
             pusher = new Pusher(PUSHER_KEY, {
                 cluster: PUSHER_CLUSTER,
                 authEndpoint: '/api/pusher/auth',
                 auth: { params: { user_info: JSON.stringify({ user_id: userId, username: playerName }) } }
             });
+
             globalChannel = pusher.subscribe('presence-global');
             globalChannel.bind('pusher:subscription_succeeded', (m) => {
                 document.getElementById('onlineCount').textContent = m.count;
@@ -691,178 +369,240 @@
             globalChannel.bind('lobby-created', () => loadPublicLobbies());
         }
 
-        /* ── CREATE BATTLE ── */
         async function createBattle() {
-            let lobbyName = document.getElementById('lobbyNameInput').value.trim();
+            const lobbyName = document.getElementById('lobbyNameInput').value.trim();
+            const isPublic = document.getElementById('isPublic').checked;
+
             if (!lobbyName) {
-                lobbyName = playerName + "'s Arena";
-                document.getElementById('lobbyNameInput').value = lobbyName;
-                showToast('🎲 Lobby named: ' + lobbyName);
+                document.getElementById('lobbyError').textContent = 'Please enter a lobby name!';
+                return;
             }
             if (lobbyName.length < 3) {
-                document.getElementById('lobbyError').textContent = 'Lobby name too short!'; return;
+                document.getElementById('lobbyError').textContent = 'Lobby name too short!';
+                return;
             }
+
             document.getElementById('lobbyError').textContent = '';
-            const isPublic = document.getElementById('isPublic').checked;
             const res = await fetch(API, {
-                method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ action:'create_lobby', uid:userId, name:lobbyName, is_public:isPublic?1:0, player_name:playerName })
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    action: 'create_lobby',
+                    uid: userId,
+                    name: lobbyName,
+                    is_public: isPublic ? 1 : 0,
+                    player_name: playerName
+                })
             });
             const data = await res.json();
-            if (data.success) joinGameLobby(data.lobby_id, true);
-            else document.getElementById('lobbyError').textContent = data.error || 'Failed to create';
+            if (data.success) {
+                joinGameLobby(data.lobby_id, true);
+            } else {
+                document.getElementById('lobbyError').textContent = data.error || 'Failed to create';
+            }
         }
 
-        /* ── JOIN BATTLE ── */
         async function joinBattle() {
             const code = document.getElementById('battleCode').value.trim().toUpperCase();
             if (!code || code.length !== 6) {
-                document.getElementById('lobbyError').textContent = 'Enter valid 6-char code!'; return;
+                document.getElementById('lobbyError').textContent = 'Enter valid 6-char code!';
+                return;
             }
             document.getElementById('lobbyError').textContent = '';
             const res = await fetch(API, {
-                method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ action:'join_lobby', lobby_id:code, uid:userId, player_name:playerName })
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    action: 'join_lobby',
+                    lobby_id: code,
+                    uid: userId,
+                    player_name: playerName
+                })
             });
             const data = await res.json();
-            if (data.success) joinGameLobby(code, false);
-            else document.getElementById('lobbyError').textContent = data.error || 'Failed to join';
+            if (data.success) {
+                joinGameLobby(code, false);
+            } else {
+                document.getElementById('lobbyError').textContent = data.error || 'Failed to join';
+            }
         }
 
-        /* ── JOIN GAME LOBBY ── */
         function joinGameLobby(lobbyId, host) {
-            currentLobby = lobbyId; isHost = host;
+            currentLobby = lobbyId;
+            isHost = host;
             document.getElementById('lobbySection').classList.add('hidden');
             document.getElementById('currentLobbySection').classList.remove('hidden');
             document.getElementById('lobbyCodeDisplay').textContent = lobbyId;
             document.getElementById('hostControls').classList.toggle('hidden', !host);
             document.getElementById('playerControls').classList.toggle('hidden', host);
+
             if (gameChannel) pusher.unsubscribe(gameChannel.name);
             gameChannel = pusher.subscribe(`game-${lobbyId}`);
             gameChannel.bind('state-update', () => loadLobbyState());
-            gameChannel.bind('game-started', () => { window.location.href = `/game.html?code=${lobbyId}`; });
+            gameChannel.bind('game-started', () => {
+                window.location.href = `/game.html?code=${lobbyId}`;
+            });
             gameChannel.bind('host-transferred', (data) => {
                 if (data.new_host === userId) {
-                    isHost = true; showToast('You are now the host! 👑');
+                    isHost = true;
+                    showToast('You are now the host! 👑');
                     document.getElementById('hostControls').classList.remove('hidden');
                     document.getElementById('playerControls').classList.add('hidden');
                 }
             });
+
             loadLobbyState();
+            // FIX: Store interval reference so it can be cleared on leave
             if (window._statePoll) clearInterval(window._statePoll);
             window._statePoll = setInterval(loadLobbyState, 3000);
         }
 
-        /* ── LOAD LOBBY STATE ── */
         async function loadLobbyState() {
             if (!currentLobby) return;
             try {
                 const res = await fetch(API, {
-                    method: 'POST', headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ action:'get_state', lobby_id:currentLobby })
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'get_state', lobby_id: currentLobby })
                 });
                 const data = await res.json();
-                if (data.error) { showToast(data.error); leaveLobbyLocal(); return; }
+                if (data.error) {
+                    showToast(data.error);
+                    leaveLobbyLocal();
+                    return;
+                }
                 const lobby = data.lobby;
-                document.getElementById('lobbyTitle').textContent = lobby.name;
+                document.getElementById('lobbyTitle').innerHTML = `<i class="fa-solid fa-shield-halved" style="margin-right:8px;"></i>${lobby.name}`;
                 isHost = lobby.host_uid === userId;
                 document.getElementById('hostControls').classList.toggle('hidden', !isHost);
                 document.getElementById('playerControls').classList.toggle('hidden', isHost);
                 document.getElementById('startBtn').disabled = lobby.players.length < 2;
+
                 const list = document.getElementById('playersList');
                 list.innerHTML = lobby.players.map(p => `
                     <div class="lobby-item">
                         <span>${p.name}
-                            ${p.uid===lobby.host_uid?'<span class="host-badge">HOST</span>':''}
-                            ${p.uid.startsWith('bot_')?'<span class="bot-badge">BOT</span>':''}
+                            ${p.uid === lobby.host_uid ? '<span class="host-badge"><i class="fa-solid fa-crown"></i>HOST</span>' : ''}
+                            ${p.uid.startsWith('bot_') ? '<span class="bot-badge"><i class="fa-solid fa-robot"></i>BOT</span>' : ''}
                         </span>
                     </div>
                 `).join('');
-            } catch(e) { console.error('loadLobbyState error:', e); }
+            } catch (e) {
+                console.error('loadLobbyState error:', e);
+            }
         }
 
-        /* ── BOT CONTROLS ── */
         async function addBot() {
             if (!currentLobby || !isHost) return;
             const botName = 'Bot_' + Math.floor(Math.random() * 1000);
-            const botId   = 'bot_' + Math.random().toString(36).substring(2, 15);
+            const botId = 'bot_' + Math.random().toString(36).substring(2, 15);
+
             const res = await fetch(API, {
-                method:'POST', headers:{'Content-Type':'application/json'},
-                body: JSON.stringify({ action:'join_lobby', lobby_id:currentLobby, uid:botId, player_name:botName })
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    action: 'join_lobby',
+                    lobby_id: currentLobby,
+                    uid: botId,
+                    player_name: botName
+                })
             });
             const data = await res.json();
-            if (data.error) showToast(data.error); else loadLobbyState();
+            if (data.error) showToast(data.error);
+            else loadLobbyState();
         }
+
+        // FIX: removeBot now calls the real remove_bot API endpoint
         async function removeBot() {
             if (!currentLobby || !isHost) return;
             const res = await fetch(API, {
-                method:'POST', headers:{'Content-Type':'application/json'},
-                body: JSON.stringify({ action:'remove_bot', lobby_id:currentLobby, uid:userId })
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    action: 'remove_bot',
+                    lobby_id: currentLobby,
+                    uid: userId
+                })
             });
             const data = await res.json();
-            if (data.error) showToast(data.error); else loadLobbyState();
+            if (data.error) showToast(data.error);
+            else loadLobbyState();
         }
 
-        /* ── DELETE LOBBY ── */
         async function deleteLobby() {
             if (!currentLobby || !isHost) return;
             if (!confirm('Delete this lobby? All players will be kicked.')) return;
+
             const res = await fetch(API, {
-                method:'POST', headers:{'Content-Type':'application/json'},
-                body: JSON.stringify({ action:'delete_lobby', lobby_id:currentLobby, admin_token:'admin_token_exile_1234' })
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    action: 'delete_lobby',
+                    lobby_id: currentLobby,
+                    admin_token: 'admin_token_exile_1234'
+                })
             });
             const data = await res.json();
-            if (data.success) leaveLobbyLocal(); else showToast(data.error || 'Failed to delete');
+            if (data.success) leaveLobbyLocal();
+            else showToast(data.error || 'Failed to delete');
         }
 
-        /* ── START GAME ── */
         async function startGame() {
             if (!currentLobby || !isHost) return;
             const res = await fetch(API, {
-                method:'POST', headers:{'Content-Type':'application/json'},
-                body: JSON.stringify({ action:'start_game', lobby_id:currentLobby })
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'start_game', lobby_id: currentLobby })
             });
             const data = await res.json();
             if (data.error) showToast(data.error);
         }
 
-        /* ── LEAVE ── */
-        function leaveLobby() { leaveLobbyLocal(); }
+        function leaveLobby() {
+            leaveLobbyLocal();
+        }
+
         function leaveLobbyLocal() {
-            currentLobby = null; isHost = false;
+            currentLobby = null;
+            isHost = false;
+            // FIX: clear the state polling interval on leave
             if (window._statePoll) { clearInterval(window._statePoll); window._statePoll = null; }
             if (gameChannel) { pusher.unsubscribe(gameChannel.name); gameChannel = null; }
             document.getElementById('currentLobbySection').classList.add('hidden');
             document.getElementById('lobbySection').classList.remove('hidden');
         }
 
-        /* ── PUBLIC LOBBIES ── */
         async function loadPublicLobbies() {
             try {
                 const res = await fetch(`${API}?action=get_public_lobbies`);
                 const data = await res.json();
                 const list = document.getElementById('publicLobbies');
                 if (!data.lobbies || data.lobbies.length === 0) {
-                    list.innerHTML = '<div style="text-align:center;opacity:0.5;font-size:13px;padding:10px 0;">No public battles yet</div>';
+                    list.innerHTML = '<div style="text-align:center;opacity:0.6;font-size:14px;">No public battles</div>';
                     return;
                 }
                 list.innerHTML = data.lobbies.map(l => `
                     <div class="lobby-item" onclick="quickJoin('${l._id}')">
-                        <span style="font-weight:700;">${l.name}</span>
-                        <span style="opacity:0.6;font-size:13px;">${l.players.length}/6 <i class="fa-solid fa-users" style="font-size:11px;"></i></span>
+                        <span style="font-weight:700;"><i class="fa-solid fa-gamepad" style="margin-right:6px;"></i>${l.name}</span>
+                        <span style="opacity:0.7;font-size:14px;"><i class="fa-solid fa-users" style="margin-right:4px;"></i>${l.players.length}/6</span>
                     </div>
                 `).join('');
-            } catch(e) {}
+            } catch (e) {}
         }
+
         function quickJoin(code) {
             document.getElementById('battleCode').value = code;
             joinBattle();
         }
 
-        /* ── INPUT EVENTS ── */
+        function showCredits() {
+            alert('Exile Clash - Real-time RPS Battle\nBuilt with MongoDB + Pusher + Vercel\n\nBy Nethindu 🐻');
+        }
+
         document.getElementById('battleCode').addEventListener('input', e => {
             e.target.value = e.target.value.toUpperCase();
         });
+
         document.getElementById('playerName').addEventListener('keypress', e => {
             if (e.key === 'Enter') enterLobby();
         });
