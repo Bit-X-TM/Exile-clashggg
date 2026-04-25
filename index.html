@@ -742,7 +742,7 @@
             let data = await res.json();
 
             // If a lobby with this name already exists, auto-delete it and recreate
-            if (!data.success && data.error && data.error.toLowerCase().includes('exist')) {
+            if (!data.success && data.error && data.error.includes('already taken')) {
                 showToast('♻️ Old lobby found — replacing it...');
 
                 // Try deleting by saved lobby ID first
