@@ -143,9 +143,9 @@
         .player-card {
             background: rgba(255,255,255,0.06);
             border: 2px solid rgba(255,255,255,0.10);
-            border-radius: 18px; padding: 14px 10px 12px;
+            border-radius: 18px; padding: 10px 10px 12px;
             text-align: center; position: relative;
-            display: flex; flex-direction: column; align-items: center; gap: 7px;
+            display: flex; flex-direction: column; align-items: center; gap: 6px;
             transition: border-color 0.25s, box-shadow 0.25s, transform 0.2s;
         }
         .player-card:not(.dead):hover { transform: translateY(-2px); }
@@ -179,11 +179,12 @@
             box-shadow: 0 0 5px rgba(0,229,255,0.4);
         }
 
-        .island-wrap { width: 68px; height: 68px; position: relative; flex-shrink: 0; }
+        .island-wrap {
+            width: 100%; flex: 1; min-height: 80px; position: relative;
+        }
         .island-img {
-            width: 100%; height: 100%;
+            position: absolute; inset: 0;
             background-size: contain; background-repeat: no-repeat; background-position: center;
-            position: relative;
         }
         .island-damage {
             position: absolute; inset: 0;
@@ -411,6 +412,22 @@
         }
 
         .hidden { display: none !important; }
+
+        .coins-hint {
+            text-align: center; font-size: 12px; font-weight: 700;
+            padding: 10px 14px; border-radius: 12px; margin-top: 10px;
+            background: rgba(255,215,0,0.12); border: 1px solid rgba(255,215,0,0.3);
+            color: var(--gold); animation: pulse-hint 2s ease-in-out infinite;
+        }
+        .coins-hint.waiting {
+            background: rgba(124,92,252,0.10); border-color: rgba(124,92,252,0.28);
+            color: var(--accent2); animation: none;
+        }
+        body.light .coins-hint { color: #886600; background: rgba(200,150,0,0.10); }
+        body.light .coins-hint.waiting { color: var(--accent); }
+        @keyframes pulse-hint {
+            0%,100% { opacity: 0.7; } 50% { opacity: 1; }
+        }
     </style>
 </head>
 <body>
@@ -499,6 +516,13 @@
                         </div>
                         <div class="target-btns" id="target-buttons"></div>
                         <button class="cancel-btn" onclick="cancelTarget()">✕ Cancel</button>
+                    </div>
+
+                    <div id="coins-hint" class="coins-hint hidden">
+                        <i class="fa-solid fa-coins"></i> Spend all your coins to continue!
+                    </div>
+                    <div id="waiting-coins-hint" class="coins-hint waiting hidden">
+                        <i class="fa-solid fa-hourglass-half"></i> Waiting for others to spend their coins<span class="dots"></span>
                     </div>
                 </div>
 
@@ -710,6 +734,10 @@
             } else if (gameState.phase === 'coin' && me && !me.is_dead) {
                 coinPhase.classList.remove('hidden');
                 document.getElementById('my-coins').textContent = me.coins || 0;
+                // Show hint when player has spent all coins
+                const allSpent = gameState.players.filter(p => !p.is_dead).every(p => p.coins === 0);
+                document.getElementById('coins-hint').classList.toggle('hidden', me.coins > 0 || allSpent);
+                document.getElementById('waiting-coins-hint').classList.toggle('hidden', me.coins > 0 || !allSpent);
                 renderShop(me);
                 renderInventory(me);
                 renderTargetPanel(me);
@@ -785,8 +813,20 @@
 
             const inWaiting = gameState.status === 'waiting';
             const inCoin    = gameState.phase === 'coin';
+
             startBtn.classList.toggle('hidden', !inWaiting);
-            nextRoundBtn.classList.toggle('hidden', !inCoin);
+
+            if (inCoin) {
+                // Only allow Next Round when every alive player has spent all their coins
+                const alivePlayers = gameState.players.filter(p => !p.is_dead);
+                const allCoinsSpent = alivePlayers.every(p => p.coins === 0);
+                nextRoundBtn.classList.remove('hidden');
+                nextRoundBtn.disabled = !allCoinsSpent;
+                nextRoundBtn.title = allCoinsSpent ? '' : 'All players must spend their coins first';
+            } else {
+                nextRoundBtn.classList.add('hidden');
+            }
+
             if (inWaiting) startBtn.disabled = gameState.players.length < 2;
         }
 
