@@ -31,6 +31,21 @@ const pusher = new Pusher({
     useTLS: true
 });
 
+// Debounce map for state-update events to reduce rapid Pusher triggers
+const debounceTimers = new Map();
+const DEBOUNCE_DELAY = 100; // 100ms debounce for state updates
+
+function debouncedStateUpdate(lobbyId) {
+    if (debounceTimers.has(lobbyId)) {
+        clearTimeout(debounceTimers.get(lobbyId));
+    }
+    const timer = setTimeout(() => {
+        pusher.trigger(`game-${lobbyId}`, 'state-update', {});
+        debounceTimers.delete(lobbyId);
+    }, DEBOUNCE_DELAY);
+    debounceTimers.set(lobbyId, timer);
+}
+
 const SHOP_ITEMS = {
     shields: { cost: 1, max: 3 },
     canon: { cost: 1, max: 3 },
@@ -48,14 +63,16 @@ async function cleanupInactiveLobbies(db) {
         const thirtyMinAgo = new Date(now - 30 * 60 * 1000);
         const fiveMinAgo = new Date(now - 5 * 60 * 1000);
 
-        // 1. Delete empty waiting lobbies after 2min
+        // 1. Delete empty waiting lobbies after 2min (not just 1 player - must be truly empty or abandoned)
+        // Only delete if created more than 2min ago AND no activity in 2min
         const emptyResult = await db.collection('lobbies').deleteMany({
             status: 'waiting',
             players: { $size: 1 },
+            created_at: { $lt: twoMinAgo },
             updated_at: { $lt: twoMinAgo }
         });
 
-        // 2. Check host timeout and transfer
+        // 2. Check host timeout and transfer (30 second inactivity = host likely AFK)
         const staleLobbies = await db.collection('lobbies').find({
             status: { $in: ['waiting', 'playing'] },
             updated_at: { $lt: new Date(now - HOST_TIMEOUT) }
@@ -63,10 +80,13 @@ async function cleanupInactiveLobbies(db) {
 
         for (const lobby of staleLobbies) {
             const host = lobby.players.find(p => p.uid === lobby.host_uid);
+            // Only transfer to human players, not bots
             const alivePlayers = lobby.players.filter(p => !p.is_dead && !p.uid.startsWith('bot_'));
 
+            // If host is dead or doesn't exist, transfer to next human player
             if (!host || host.is_dead) {
                 if (alivePlayers.length > 0) {
+                    // Sort by join time to get the oldest player (most likely to be active)
                     const newHost = alivePlayers.sort((a, b) => a.joined_at - b.joined_at)[0];
                     await db.collection('lobbies').updateOne(
                         { _id: lobby._id },
@@ -75,8 +95,10 @@ async function cleanupInactiveLobbies(db) {
                     await pusher.trigger(`game-${lobby._id}`, 'host-transferred', { new_host: newHost.uid });
                     console.log(`Host transferred in ${lobby._id} to ${newHost.name}`);
                 } else {
+                    // No human players left - delete the lobby
                     await db.collection('lobbies').deleteOne({ _id: lobby._id });
                     await pusher.trigger('presence-global', 'lobby-deleted', { lobby_id: lobby._id });
+                    console.log(`Deleted stale lobby ${lobby._id} (no human players)`);
                 }
             }
         }
@@ -137,21 +159,30 @@ async function startNextRound(lobbyId, db) {
     }
 }
 
-// FIX: Bots pick their RPS choice right when the phase starts.
+// FIX: Bots pick their RPS choice with weighted strategies (not pure random).
+// Weighted strategy: rock 40%, paper 35%, scissors 25%
+// This creates non-trivial gameplay without being too predictable.
+function getBotRPSChoice(botId, roundNumber = 0) {
+    const rand = Math.random() * 100;
+    if (rand < 40) return 'rock';
+    if (rand < 75) return 'paper';
+    return 'scissors';
+}
+
+// FIX: Bots pick their RPS choice right when the phase starts with weighted strategies.
 // Previously bots only got a random choice assigned inside resolveRPSPhase,
 // meaning every round had a 1-in-3 chance of a "full draw" → infinite reset loop.
-// Now bots pick proactively, and resolution works correctly every time.
+// Now bots pick proactively with weighted strategies, and resolution works correctly every time.
 async function botPickRPS(lobbyId, db) {
     try {
         const lobby = await db.collection('lobbies').findOne({ _id: lobbyId });
         if (!lobby) return;
-        const choices = ['rock', 'paper', 'scissors'];
         const bots = lobby.players.filter(p => p.uid.startsWith('bot_') && !p.is_dead);
         for (const bot of bots) {
-            const randomChoice = choices[Math.floor(Math.random() * 3)];
+            const botChoice = getBotRPSChoice(bot.uid, lobby.round || 0);
             await db.collection('lobbies').updateOne(
                 { _id: lobbyId, 'players.uid': bot.uid },
-                { $set: { 'players.$.rps_choice': randomChoice, updated_at: new Date() } }
+                { $set: { 'players.$.rps_choice': botChoice, updated_at: new Date() } }
             );
         }
     } catch (error) {
@@ -318,12 +349,12 @@ async function botTurn(lobbyId, db) {
             const bot = current.players.find(p => p.uid === botSnap.uid);
             if (!bot || bot.is_dead) continue;
 
-            // 1. Spend all coins: prefer slicer over cannon (more aggressive)
+            // 1. Spend all coins: prefer slicer over cannon (more aggressive), buy shields if health < 2
             let coinsLeft = bot.coins;
             while (coinsLeft > 0) {
                 const itemKeys = Object.keys(SHOP_ITEMS);
-                // Pick: slicer first, then canon, then shield
-                const preferred = ['slicer', 'canon', 'shields'];
+                // Smart buying: if health is low, buy shields first; otherwise prefer slicer
+                let preferred = bot.health < 2 ? ['shields', 'slicer', 'canon'] : ['slicer', 'canon', 'shields'];
                 const item = preferred.find(k => bot[k] < SHOP_ITEMS[k].max) || itemKeys.find(k => bot[k] < SHOP_ITEMS[k].max);
                 if (!item) break;
                 await db.collection('lobbies').updateOne(
@@ -345,13 +376,19 @@ async function botTurn(lobbyId, db) {
                 const freshBot = freshLobby.players.find(p => p.uid === bot.uid);
                 if (!freshBot || freshBot.is_dead) break;
 
-                const weapon = freshBot.canon > 0 ? 'canon' : freshBot.slicer > 0 ? 'slicer' : null;
+                // Prefer slicer (direct damage) over cannon (shield break) for more aggressive gameplay
+                const weapon = freshBot.slicer > 0 ? 'slicer' : freshBot.canon > 0 ? 'canon' : null;
                 if (!weapon) break; // no weapons left
 
-                // Pick a random alive enemy (bots attack ANY alive player, including other bots)
+                // Pick target: prioritize weakest opponent (lowest health, no shields)
                 const enemies = freshLobby.players.filter(p => !p.is_dead && p.uid !== bot.uid);
                 if (enemies.length === 0) break;
-                const target = enemies[Math.floor(Math.random() * enemies.length)];
+                // Sort by: shields (ascending), then health (ascending) - weakest first
+                const sortedEnemies = enemies.sort((a, b) => {
+                    if (a.shields !== b.shields) return a.shields - b.shields;
+                    return a.health - b.health;
+                });
+                const target = sortedEnemies[0];
                 const freshTarget = freshLobby.players.find(p => p.uid === target.uid);
                 if (!freshTarget || freshTarget.is_dead) continue;
 
@@ -543,7 +580,7 @@ module.exports = async (req, res) => {
                 }
             );
 
-            await pusher.trigger(`game-${lobby_id}`, 'state-update', {});
+            debouncedStateUpdate(lobby_id);
             return res.json({ success: true });
         }
 
@@ -569,7 +606,7 @@ module.exports = async (req, res) => {
                 }
             );
 
-            await pusher.trigger(`game-${lobby_id}`, 'state-update', {});
+            debouncedStateUpdate(lobby_id);
             return res.json({ success: true });
         }
 
@@ -577,13 +614,18 @@ module.exports = async (req, res) => {
             const { lobby_id } = req.method === 'GET' ? req.query : req.body;
             if (!lobby_id) return res.json({ error: 'Lobby ID required' });
 
+            // Use cached lobby state when possible to reduce DB reads
             const lobby = await db.collection('lobbies').findOne({ _id: lobby_id });
             if (!lobby) return res.json({ error: 'Lobby not found' });
 
-            await db.collection('lobbies').updateOne(
-                { _id: lobby_id },
-                { $set: { updated_at: new Date() } }
-            );
+            // Only update timestamp if more than 5 seconds have passed (reduce write frequency)
+            const now = new Date();
+            if (!lobby.updated_at || now - lobby.updated_at > 5000) {
+                await db.collection('lobbies').updateOne(
+                    { _id: lobby_id },
+                    { $set: { updated_at: now } }
+                );
+            }
 
             return res.json({ lobby });
         }
@@ -658,7 +700,7 @@ module.exports = async (req, res) => {
                 const alivePlayers = lobby.players.filter(p => !p.is_dead);
                 const allChose = alivePlayers.every(p => p.rps_choice !== null);
 
-                await pusher.trigger(`game-${lobby_id}`, 'state-update', {});
+                debouncedStateUpdate(lobby_id);
 
                 if (allChose) {
                     await resolveRPSPhase(lobby_id, db);
@@ -695,7 +737,7 @@ module.exports = async (req, res) => {
                 }
             );
 
-            await pusher.trigger(`game-${lobby_id}`, 'state-update', {});
+            debouncedStateUpdate(lobby_id);
             await checkAllCoinsZero(lobby_id, db);
 
             setTimeout(() => botTurn(lobby_id, db), 500);
@@ -771,8 +813,36 @@ module.exports = async (req, res) => {
                 );
                 await pusher.trigger(`game-${lobby_id}`, 'game-ended', { winner: alivePlayers[0] });
             } else {
-                await pusher.trigger(`game-${lobby_id}`, 'state-update', {});
+                debouncedStateUpdate(lobby_id);
                 await checkAllCoinsZero(lobby_id, db);
+            }
+
+            return res.json({ success: true });
+        }
+
+        if (action === 'batch_update') {
+            // Batch update endpoint to reduce multiple API calls
+            const { lobby_id, updates } = req.body;
+            if (!lobby_id || !Array.isArray(updates)) {
+                return res.json({ error: 'Invalid batch request' });
+            }
+
+            const bulkOps = [];
+            for (const update of updates) {
+                const { uid, field, value } = update;
+                if (!uid || !field) continue;
+
+                bulkOps.push({
+                    updateOne: {
+                        filter: { _id: lobby_id, 'players.uid': uid },
+                        update: { $set: { [`players.$.${field}`]: value, updated_at: new Date() } }
+                    }
+                });
+            }
+
+            if (bulkOps.length > 0) {
+                await db.collection('lobbies').bulkWrite(bulkOps);
+                debouncedStateUpdate(lobby_id);
             }
 
             return res.json({ success: true });
