@@ -172,9 +172,14 @@
     <div class="container glass hidden" id="dashboard">
         <h1><i class="fa-solid fa-gauge-high"></i> Lobby Management</h1>
         
-        <button class="btn btn-primary glass refresh-btn" onclick="loadLobbies()">
-            <i class="fa-solid fa-rotate"></i> Refresh Lobbies
-        </button>
+        <div style="display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap;">
+            <button class="btn btn-primary glass" style="flex:1;min-width:160px;" onclick="loadLobbies()">
+                <i class="fa-solid fa-rotate"></i> Refresh Lobbies
+            </button>
+            <button class="btn btn-danger glass" style="flex:1;min-width:160px;" onclick="resetAllLobbies()">
+                <i class="fa-solid fa-bomb"></i> Reset All Lobbies
+            </button>
+        </div>
 
         <div class="stats-grid" id="statsGrid"></div>
 
@@ -361,6 +366,29 @@
                 }
             } catch (e) {
                 document.getElementById('dashboardError').textContent = 'Failed to delete';
+            }
+        }
+
+        async function resetAllLobbies() {
+            if (!confirm('⚠️ Delete ALL lobbies? This cannot be undone!')) return;
+
+            try {
+                const res = await fetch(API, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'reset_all', admin_token: adminToken })
+                });
+                const data = await res.json();
+
+                if (data.success) {
+                    document.getElementById('dashboardSuccess').textContent = `✅ ${data.message}`;
+                    setTimeout(() => document.getElementById('dashboardSuccess').textContent = '', 3000);
+                    loadLobbies();
+                } else {
+                    document.getElementById('dashboardError').textContent = data.error;
+                }
+            } catch (e) {
+                document.getElementById('dashboardError').textContent = 'Failed to reset';
             }
         }
 
