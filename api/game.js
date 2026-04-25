@@ -44,15 +44,14 @@ const HOST_TIMEOUT = 30 * 1000;
 async function cleanupInactiveLobbies(db) {
     try {
         const now = Date.now();
-        const twoMinAgo = new Date(now - 2 * 60 * 1000);
+        const tenMinAgo = new Date(now - 10 * 60 * 1000);
         const thirtyMinAgo = new Date(now - 30 * 60 * 1000);
         const fiveMinAgo = new Date(now - 5 * 60 * 1000);
 
-        // 1. Delete empty waiting lobbies after 2min
+        // 1. Delete ALL lobbies (waiting or playing) older than 10 minutes
         const emptyResult = await db.collection('lobbies').deleteMany({
-            status: 'waiting',
-            players: { $size: 1 },
-            updated_at: { $lt: twoMinAgo }
+            status: { $in: ['waiting', 'playing'] },
+            created_at: { $lt: tenMinAgo }
         });
 
         // 2. Check host timeout and transfer
@@ -441,6 +440,16 @@ module.exports = async (req, res) => {
                 return res.json({ success: true, message: 'Lobby deleted' });
             }
             return res.json({ error: 'Lobby not found' });
+        }
+
+        if (action === 'reset_all') {
+            const { admin_token } = req.body;
+            if (admin_token !== 'admin_token_exile_1234') {
+                return res.status(403).json({ error: 'Unauthorized' });
+            }
+            const result = await db.collection('lobbies').deleteMany({});
+            await pusher.trigger('presence-global', 'lobby-deleted', { lobby_id: 'all' });
+            return res.json({ success: true, message: `Deleted ${result.deletedCount} lobbies` });
         }
 
         if (action === 'get_all_lobbies') {
